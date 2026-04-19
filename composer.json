@@ -1,0 +1,33 @@
+{
+    "name": "survos/ai-claims-bundle",
+    "description": "Store AI (and human) assertions as append-only claims with confidence, basis, and source — an alternative to opaque AI-result blobs.",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": ["symfony", "ai", "claims", "confidence", "provenance", "llm", "hallucinations"],
+    "autoload": {
+        "psr-4": {
+            "Survos\\AiClaimsBundle\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^8.4",
+        "doctrine/orm": "^3.6",
+        "doctrine/doctrine-bundle": "^3.2",
+        "doctrine/dbal": "^3.9||^4.2",
+        "symfony/framework-bundle": "^8.0",
+        "symfony/uid": "^8.0",
+        "symfony/console": "^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.0|^14.0",
+        "api-platform/core": "^4.0"
+    },
+    "suggest": {
+        "api-platform/core": "Exposes Claim as an ApiResource with schema + concrete examples."
+    },
+    "extra": {
+        "symfony": {
+            "require": "^8.0"
+        }
+    }
+}
