@@ -38,4 +38,21 @@ final class SurvosAiClaimsBundle extends AbstractBundle
         $services->set(ClaimAggregator::class)
             ->arg('$listPredicates', $config['list_predicates']);
     }
+
+    public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
+    {
+        $builder->prependExtensionConfig('doctrine', [
+            'orm' => [
+                'mappings' => [
+                    'SurvosAiClaimsBundle' => [
+                        'is_bundle' => false,
+                        'type' => 'attribute',
+                        'dir' => \dirname(__DIR__) . '/src/Entity',
+                        'prefix' => 'Survos\\AiClaimsBundle\\Entity',
+                        'alias' => 'AiClaims',
+                    ],
+                ],
+            ],
+        ]);
+    }
 }

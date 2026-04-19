@@ -24,25 +24,8 @@ composer require survos/ai-claims-bundle
 ```
 
 The bundle is a flex-compatible Symfony bundle and auto-registers in
-`config/bundles.php`.
-
-One manual step — tell Doctrine where the entity lives, since the bundle
-doesn't claim its own entity manager:
-
-```yaml
-# config/packages/doctrine.yaml
-doctrine:
-    orm:
-        entity_managers:
-            default:
-                mappings:
-                    SurvosAiClaimsBundle:
-                        is_bundle: false
-                        type: attribute
-                        dir: '%kernel.project_dir%/vendor/survos/ai-claims-bundle/src/Entity'
-                        prefix: 'Survos\AiClaimsBundle\Entity'
-                        alias: AiClaims
-```
+`config/bundles.php`, and the bundle prepends its Doctrine ORM mapping
+automatically, like the other Survos bundles.
 
 Register list-valued predicates so the aggregator projects them correctly:
 

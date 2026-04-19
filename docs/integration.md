@@ -10,27 +10,10 @@ composer require survos/ai-claims-bundle
 
 Flex registers the bundle in `config/bundles.php` automatically.
 
-## 2. Map the entity
+The bundle prepends its Doctrine ORM mapping automatically, so the
+`Claim` entity is discovered without extra app configuration.
 
-The bundle does not ship its own entity manager. Add the Doctrine
-mapping to the consuming app's default EM:
-
-```yaml
-# config/packages/doctrine.yaml
-doctrine:
-    orm:
-        entity_managers:
-            default:
-                mappings:
-                    SurvosAiClaimsBundle:
-                        is_bundle: false
-                        type: attribute
-                        dir: '%kernel.project_dir%/vendor/survos/ai-claims-bundle/src/Entity'
-                        prefix: 'Survos\AiClaimsBundle\Entity'
-                        alias: AiClaims
-```
-
-## 3. Configure list predicates
+## 2. Configure list predicates
 
 Tell the aggregator which predicates produce lists. Everything else is
 treated as a scalar.
@@ -48,7 +31,7 @@ survos_ai_claims:
 Missing entries default to scalar — safe but might collapse lists, so
 register every list-valued predicate the app uses.
 
-## 4. Create the table
+## 3. Create the table
 
 Dev:
 
@@ -63,7 +46,7 @@ bin/console make:migration
 bin/console doctrine:migrations:migrate
 ```
 
-## 5. Pick a scope convention
+## 4. Pick a scope convention
 
 The bundle's `scope` column is nullable and app-interpreted. Pick one
 convention and apply it everywhere:
@@ -102,7 +85,7 @@ final class TenantClaimsCleanupListener
 The bundle does not ship this because it has no opinion on what a "tenant"
 is in the consuming app.
 
-## 6. Write claims from your tool
+## 5. Write claims from your tool
 
 Each AI (or human) tool that produces claims:
 
@@ -160,7 +143,7 @@ final class EnrichFromThumbnailTool
 }
 ```
 
-## 7. Read the aggregated view
+## 6. Read the aggregated view
 
 Anywhere you previously read the AI blob, read the aggregator instead:
 
@@ -175,7 +158,7 @@ For search indexing, the list of contributing sources per claim is
 available under `$view[$pred]['items']` — useful for tier-based indexing
 (only high-confidence terms in the main index, medium/low as suggestions).
 
-## 8. Export / import
+## 7. Export / import
 
 ```bash
 bin/console claims:export --scope=tenant:rhs > rhs.jsonl
@@ -184,7 +167,7 @@ bin/console claims:import --scope=tenant:rhs < rhs.jsonl
 
 *(Export/import commands will be added in a follow-up.)*
 
-## 9. Human corrections
+## 8. Human corrections
 
 No new API — just a different `source`:
 
