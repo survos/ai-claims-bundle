@@ -45,6 +45,22 @@ bin/console make:migration
 bin/console doctrine:migrations:migrate
 ```
 
+Claims can also be backed up and restored as JSONL:
+
+```bash
+bin/console claims:export --scope=tenant:rhs > rhs.jsonl
+bin/console claims:import --scope=tenant:rhs < rhs.jsonl
+```
+
+Redirection is the default CLI workflow. If you prefer explicit file paths
+instead, `--output` and `--input` use `survos/jsonl-bundle`'s
+`JsonlWriter` and `JsonlReader`:
+
+```bash
+bin/console claims:export --scope=tenant:rhs --output=rhs.jsonl.gz
+bin/console claims:import --scope=tenant:rhs --input=rhs.jsonl.gz
+```
+
 ## Quick start
 
 ### Recording a tool run

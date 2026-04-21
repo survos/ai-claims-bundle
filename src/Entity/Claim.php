@@ -56,6 +56,77 @@ use Symfony\Component\Uid\Ulid;
 #[ApiFilter(OrderFilter::class, properties: ['createdAt', 'confidence', 'predicate', 'source'])]
 class Claim
 {
+    // ── Subject types.
+    // Conventional names any content app reuses. Only the two with clear,
+    // non-ambiguous meaning — asset/media overlap, Loc is app-specific.
+    public const SUBJECT_IMAGE = 'image';
+    public const SUBJECT_ITEM  = 'item';
+
+    // ── Predicates.
+    // Standard vocabulary terms stay in their own namespaces (dcterms:, foaf:).
+    // Predicates with no natural home in a public vocabulary — agreed-upon
+    // names for parsing AI pipeline output — live in the ai: namespace.
+    // Downstream exports (Omeka, etc.) map these as needed.
+    // Truly app-specific predicates (e.g. 'ssai:civilWarPension') stay in
+    // the consuming app — the bundle ships no domain vocabulary of its own.
+    //
+    // Text-type flags drive OCR/HTR routing. They are non-exclusive: a filled
+    // pension form carries typedText + handwrittenText + isForm + isFilledForm.
+    public const PRED_HAS_TEXT         = 'ai:hasText';
+    public const PRED_TYPED_TEXT       = 'ai:typedText';
+    public const PRED_HANDWRITTEN_TEXT = 'ai:handwrittenText';
+    public const PRED_IS_FORM          = 'ai:isForm';
+    public const PRED_IS_FILLED_FORM   = 'ai:isFilledForm';
+    public const PRED_OCR_TEXT         = 'ai:ocrText';
+    public const PRED_SPECULATION      = 'ai:speculation';
+
+    /**
+     * Semantically-packed ~400-char summary used by search (e.g. Meili's
+     * /chat endpoint). Distinct from dcterms:abstract, which is a human-
+     * readable prose summary — denseSummary is tuned for retrieval.
+     */
+    public const PRED_DENSE_SUMMARY    = 'ai:denseSummary';
+
+    /** FOAF standard — a named person. */
+    public const PRED_PERSON           = 'foaf:Person';
+
+    /**
+     * Derive a single, human-describable text-type label from a bag of claims for one subject.
+     * OCR/HTR routing and narration both want this one answer, not five booleans.
+     *
+     * Returns one of:
+     *   - 'form'        — a pre-printed form (blank or filled). Civil-war pension request, etc.
+     *                     isFilledForm wins over plain isForm but they both land here.
+     *   - 'combo'       — typed + handwritten together (e.g. the back of a postcard:
+     *                     a typed caption paired with a handwritten note).
+     *   - 'handwritten' — only handwriting.
+     *   - 'typed'       — only typed/printed text.
+     *   - 'none'        — no text detected.
+     *
+     * @param iterable<Claim> $claims
+     */
+    public static function deriveTextType(iterable $claims): string
+    {
+        $flags = [
+            self::PRED_HAS_TEXT         => false,
+            self::PRED_TYPED_TEXT       => false,
+            self::PRED_HANDWRITTEN_TEXT => false,
+            self::PRED_IS_FORM          => false,
+            self::PRED_IS_FILLED_FORM   => false,
+        ];
+        foreach ($claims as $claim) {
+            if (array_key_exists($claim->predicate, $flags) && $claim->value === true) {
+                $flags[$claim->predicate] = true;
+            }
+        }
+
+        if ($flags[self::PRED_IS_FILLED_FORM] || $flags[self::PRED_IS_FORM]) return 'form';
+        if ($flags[self::PRED_TYPED_TEXT] && $flags[self::PRED_HANDWRITTEN_TEXT]) return 'combo';
+        if ($flags[self::PRED_HANDWRITTEN_TEXT]) return 'handwritten';
+        if ($flags[self::PRED_TYPED_TEXT]) return 'typed';
+        return 'none';
+    }
+
     #[ORM\Id]
     #[ORM\Column(length: 26)]
     #[Groups(['claim:read'])]
@@ -168,5 +239,57 @@ class Claim
     ) {
         $this->id        = (string) new Ulid();
         $this->createdAt = new \DateTimeImmutable();
+    }
+
+    /** @return array<string, mixed> */
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'createdAt' => $this->createdAt->format(\DateTimeInterface::ATOM),
+            'scope' => $this->scope,
+            'subjectType' => $this->subjectType,
+            'subjectId' => $this->subjectId,
+            'predicate' => $this->predicate,
+            'source' => $this->source,
+            'value' => $this->value,
+            'confidence' => $this->confidence,
+            'basis' => $this->basis,
+            'runId' => $this->runId,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    public static function fromArray(array $row): self
+    {
+        foreach (['subjectType', 'subjectId', 'predicate', 'source'] as $field) {
+            if (!\array_key_exists($field, $row) || !\is_string($row[$field]) || $row[$field] === '') {
+                throw new \InvalidArgumentException(sprintf('Claim row is missing required field "%s".', $field));
+            }
+        }
+
+        $claim = new self(
+            scope: isset($row['scope']) && \is_string($row['scope']) ? $row['scope'] : null,
+            subjectType: $row['subjectType'],
+            subjectId: $row['subjectId'],
+            predicate: $row['predicate'],
+            source: $row['source'],
+            value: $row['value'] ?? null,
+            confidence: isset($row['confidence']) ? (float) $row['confidence'] : 1.0,
+            basis: isset($row['basis']) && \is_string($row['basis']) ? $row['basis'] : null,
+            runId: isset($row['runId']) && \is_string($row['runId']) ? $row['runId'] : null,
+        );
+
+        if (isset($row['id']) && \is_string($row['id']) && $row['id'] !== '') {
+            $claim->id = $row['id'];
+        }
+
+        if (isset($row['createdAt']) && \is_string($row['createdAt']) && $row['createdAt'] !== '') {
+            $claim->createdAt = new \DateTimeImmutable($row['createdAt']);
+        }
+
+        return $claim;
     }
 }

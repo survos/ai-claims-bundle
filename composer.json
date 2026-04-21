@@ -14,6 +14,7 @@
         "doctrine/orm": "^3.6",
         "doctrine/doctrine-bundle": "^3.2",
         "doctrine/dbal": "^3.9||^4.2",
+        "survos/jsonl-bundle": "^2.0",
         "symfony/framework-bundle": "^8.0",
         "symfony/uid": "^8.0",
         "symfony/console": "^8.0"

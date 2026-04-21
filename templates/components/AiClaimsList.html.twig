@@ -1,0 +1,108 @@
+{% set claims     = this.claims %}
+{% set subjectType = this.resolvedSubjectType %}
+{% set subjectId   = this.resolvedSubjectId %}
+{% set layout      = this.layout ?? 'table' %}
+
+<div class="ai-claims-list">
+    <div class="small text-muted mb-2 d-flex gap-2 flex-wrap">
+        <span>Subject: <span class="font-monospace">{{ subjectType ?? '—' }}:{{ subjectId ?? '—' }}</span></span>
+        <span class="ms-auto">{{ claims|length }} claim{{ claims|length == 1 ? '' : 's' }}</span>
+    </div>
+
+    {% if claims is empty %}
+        <div class="text-muted small fst-italic">
+            No claims recorded yet for this subject.
+        </div>
+
+    {% elseif layout == 'chips' %}
+        {# Tag / subject view — one claim per row: a coloured chip with the term,
+           uncertainty marker, and the basis in muted prose. Ordering keeps the
+           most confident claims on top. #}
+        {% set sorted = claims|sort((a, b) => b.confidence <=> a.confidence) %}
+        <div class="d-flex flex-column gap-1">
+            {% for claim in sorted %}
+                {% set c = claim.confidence %}
+                {% set tier = c >= 0.85 ? 'high' : (c >= 0.55 ? 'medium' : 'low') %}
+                {% set suffix = tier == 'high' ? '' : (tier == 'medium' ? '?' : '??') %}
+                {% set badgeClass = tier == 'high' ? 'text-bg-success' : (tier == 'medium' ? 'text-bg-warning' : 'text-bg-secondary') %}
+                {% set value = claim.value %}
+                {% if value is iterable %}
+                    {% set label = value.name ?? value.term ?? value.label ?? (value|json_encode) %}
+                {% else %}
+                    {% set label = value|default('—') %}
+                {% endif %}
+
+                <div class="d-flex align-items-baseline gap-2 flex-wrap py-1 border-bottom">
+                    <span class="badge {{ badgeClass }}" title="confidence {{ c|number_format(2) }} · {{ claim.predicate }}">
+                        {{ label }}{{ suffix }}
+                    </span>
+                    {% if claim.basis %}
+                        <span class="small text-muted fst-italic flex-grow-1">{{ claim.basis }}</span>
+                    {% else %}
+                        <span class="small text-muted">—</span>
+                    {% endif %}
+                    <span class="small text-muted font-monospace" style="font-size:.68rem;">
+                        {{ claim.predicate }} · {{ c|number_format(2) }}
+                    </span>
+                </div>
+            {% endfor %}
+        </div>
+
+    {% else %}
+        {# Default: grouped by source (audit view) #}
+        {% set bySource = {} %}
+        {% for claim in claims %}
+            {% set bucket = bySource[claim.source] ?? [] %}
+            {% set bucket = bucket|merge([claim]) %}
+            {% set bySource = bySource|merge({(claim.source): bucket}) %}
+        {% endfor %}
+
+        {% for source, group in bySource %}
+            <div class="card mb-2">
+                <div class="card-header py-1 d-flex align-items-center justify-content-between">
+                    <span class="fw-semibold small font-monospace">{{ source }}</span>
+                    <span class="badge text-bg-secondary">{{ group|length }}</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 small">
+                        <thead>
+                            <tr class="text-muted">
+                                <th style="width:22%">Predicate</th>
+                                <th>Value</th>
+                                <th style="width:70px" class="text-end">Conf.</th>
+                                <th style="width:24%">Basis</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for claim in group %}
+                                <tr>
+                                    <td class="font-monospace">{{ claim.predicate }}</td>
+                                    <td style="max-width:0;">
+                                        {% if claim.value is iterable %}
+                                            <pre class="mb-0" style="white-space:pre-wrap;font-size:.7rem;max-height:140px;overflow:auto;">{{ claim.value|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                                        {% else %}
+                                            <div class="text-break">{{ claim.value }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end font-monospace">
+                                        {% set c = claim.confidence %}
+                                        <span class="badge text-bg-{{ c >= 0.8 ? 'success' : (c >= 0.5 ? 'warning' : 'secondary') }}">
+                                            {{ c|number_format(2) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-muted" style="max-width:0;">
+                                        {% if claim.basis %}
+                                            <div class="text-break" style="font-size:.7rem;">{{ claim.basis }}</div>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>

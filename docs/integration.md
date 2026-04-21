@@ -165,7 +165,20 @@ bin/console claims:export --scope=tenant:rhs > rhs.jsonl
 bin/console claims:import --scope=tenant:rhs < rhs.jsonl
 ```
 
-*(Export/import commands will be added in a follow-up.)*
+Shell redirection is the default workflow here on purpose, since it keeps
+the commands composable for quick inspection and ad hoc transforms.
+
+If you want file-based JSONL I/O instead of shell redirection, use:
+
+```bash
+bin/console claims:export --scope=tenant:rhs --output=rhs.jsonl.gz
+bin/console claims:import --scope=tenant:rhs --input=rhs.jsonl.gz
+```
+
+Those code paths use `survos/jsonl-bundle`'s `JsonlWriter` and
+`JsonlReader`. The plain stdin/stdout path keeps minimal NDJSON handling
+for shell use. Import skips existing claim ids by default so rerunning
+the same backup is safe.
 
 ## 8. Human corrections
 

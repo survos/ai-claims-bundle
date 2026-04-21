@@ -140,7 +140,14 @@ tool runs → ClaimDraft[] → ClaimIngestor → claim rows
 
                     bin/console claims:export > tenant.jsonl
                     bin/console claims:import < tenant.jsonl
+                    bin/console claims:export --output=tenant.jsonl.gz
+                    bin/console claims:import --input=tenant.jsonl.gz
 ```
+
+The bundle intentionally supports both modes:
+
+- shell redirection for quick streaming and inspection
+- `survos/jsonl-bundle` file I/O for explicit `.jsonl` / `.jsonl.gz` paths
 
 ## Why not just extend the old blob?
 
