@@ -17,6 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Survos\AiClaimsBundle\Repository\ClaimRepository;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Uid\Ulid;
+use Survos\FieldBundle\Attribute\EntityMeta;
 
 /**
  * A single AI (or human) assertion about a subject — the uniform envelope
@@ -33,6 +34,7 @@ use Symfony\Component\Uid\Ulid;
  * The bundle never interprets it; indexes include it so the app can enforce
  * scope-isolation at query time.
  */
+#[EntityMeta(icon: 'mdi:tag-check-outline', group: 'AI')]
 #[ORM\Entity(repositoryClass: ClaimRepository::class)]
 #[ORM\Table(name: 'claim')]
 #[ORM\Index(fields: ['scope', 'subjectType', 'subjectId', 'predicate'], name: 'idx_claim_scope_subject_pred')]

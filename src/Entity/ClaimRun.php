@@ -13,6 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Survos\AiClaimsBundle\Repository\ClaimRunRepository;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Uid\Ulid;
+use Survos\FieldBundle\Attribute\EntityMeta;
 
 /**
  * Audit record for ONE tool invocation that produced a batch of Claims.
@@ -27,6 +28,7 @@ use Symfony\Component\Uid\Ulid;
  * fresh ones — so "the current run" for a source is always the one whose
  * claims exist right now.
  */
+#[EntityMeta(icon: 'mdi:tag-multiple-outline', group: 'AI')]
 #[ORM\Entity(repositoryClass: ClaimRunRepository::class)]
 #[ORM\Table(name: 'claim_run')]
 #[ORM\Index(fields: ['scope', 'subjectType', 'subjectId', 'source'], name: 'idx_claim_run_scope_subject_source')]

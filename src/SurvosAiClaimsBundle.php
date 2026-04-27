@@ -45,6 +45,12 @@ final class SurvosAiClaimsBundle extends AbstractBundle
         $services->set(ClaimsExportCommand::class);
         $services->set(ClaimsImportCommand::class);
         $services->set(AiClaimsList::class);
+
+        if (class_exists(\Survos\TablerBundle\Event\MenuEvent::class)) {
+            $services->set(\Survos\AiClaimsBundle\Menu\AiClaimsMenuSubscriber::class)
+                ->autowire()
+                ->autoconfigure();
+        }
     }
 
     public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
