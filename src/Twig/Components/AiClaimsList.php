@@ -45,6 +45,12 @@ final class AiClaimsList
     public ?string $predicates = null;
 
     /**
+     * Optional comma-separated list of predicates to exclude. Useful for keeping
+     * audit views compact when bulky text claims have a dedicated panel.
+     */
+    public ?string $excludePredicates = null;
+
+    /**
      * Render style: 'table' (default — grouped by source, every field visible)
      * or 'chips' (value + basis + confidence marker; good for tag-like predicates).
      */
@@ -88,6 +94,19 @@ final class AiClaimsList
                 $claims = array_values(array_filter(
                     $claims,
                     static fn(Claim $c) => isset($wantedPred[$c->predicate]),
+                ));
+            }
+        }
+
+        if ($this->excludePredicates !== null && trim($this->excludePredicates) !== '') {
+            $excludedPred = array_flip(array_values(array_filter(
+                array_map('trim', explode(',', $this->excludePredicates)),
+                static fn($s) => $s !== '',
+            )));
+            if ($excludedPred !== []) {
+                $claims = array_values(array_filter(
+                    $claims,
+                    static fn(Claim $c) => !isset($excludedPred[$c->predicate]),
                 ));
             }
         }

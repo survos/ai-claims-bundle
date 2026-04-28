@@ -40,7 +40,7 @@ final class ClaimIngestor
         array $drafts,
         ?RunMeta $meta = null,
         ?string $runId = null,
-    ): string {
+    ): ClaimRun {
         $runId ??= (string) new Ulid();
 
         foreach ($this->claims->findForSubjectAndSource($subjectType, $subjectId, $source, $scope) as $stale) {
@@ -82,6 +82,6 @@ final class ClaimIngestor
             $this->em->persist($claim);
         }
 
-        return $runId;
+        return $run;
     }
 }

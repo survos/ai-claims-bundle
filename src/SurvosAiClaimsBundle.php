@@ -11,6 +11,8 @@ use Survos\AiClaimsBundle\Repository\ClaimRunRepository;
 use Survos\AiClaimsBundle\Service\ClaimAggregator;
 use Survos\AiClaimsBundle\Service\ClaimIngestor;
 use Survos\AiClaimsBundle\Twig\Components\AiClaimsList;
+use Survos\AiClaimsBundle\Twig\Components\AiClaimsSummary;
+use Survos\AiClaimsBundle\Twig\Components\AiOcrPanel;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -45,6 +47,8 @@ final class SurvosAiClaimsBundle extends AbstractBundle
         $services->set(ClaimsExportCommand::class);
         $services->set(ClaimsImportCommand::class);
         $services->set(AiClaimsList::class);
+        $services->set(AiClaimsSummary::class);
+        $services->set(AiOcrPanel::class);
 
         if (class_exists(\Survos\TablerBundle\Event\MenuEvent::class)) {
             $services->set(\Survos\AiClaimsBundle\Menu\AiClaimsMenuSubscriber::class)

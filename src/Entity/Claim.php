@@ -80,6 +80,8 @@ class Claim
     public const PRED_IS_FORM          = 'ai:isForm';
     public const PRED_IS_FILLED_FORM   = 'ai:isFilledForm';
     public const PRED_OCR_TEXT         = 'ai:ocrText';
+    public const PRED_HTR_TEXT         = 'ai:htrText';
+    public const PRED_PRINTED_TEXT     = 'ai:printedText';
     public const PRED_SPECULATION      = 'ai:speculation';
 
     /**
