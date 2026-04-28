@@ -2,7 +2,7 @@
 
 {% if claims is empty %}
     <div class="alert alert-danger small mb-0">
-        No OCR claims found. Run OCR/HTR so this panel reads from the claim table.
+        No text claims found. Run OCR/HTR so this panel reads from the claim table.
     </div>
 {% else %}
     {% for claim in claims %}
@@ -20,7 +20,7 @@
                 </span>
             </div>
             <div class="card-body p-0">
-                <pre class="p-3 small mb-0 text-muted" style="max-height:320px;overflow-y:auto;white-space:pre-wrap;">{{ claim.value }}</pre>
+                <pre class="p-3 mb-0" style="max-height:360px;overflow-y:auto;white-space:pre-wrap;background:var(--tblr-bg-surface-secondary, #f8fafc);color:var(--tblr-body-color, #1f2937);font-family:var(--tblr-font-sans-serif, system-ui, sans-serif);font-size:.9rem;line-height:1.45;">{{ claim.value }}</pre>
             </div>
             <div class="card-footer small text-muted d-flex justify-content-between gap-2 flex-wrap py-1">
                 <span class="font-monospace">{{ claim.source }}</span>
