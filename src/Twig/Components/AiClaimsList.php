@@ -124,6 +124,81 @@ final class AiClaimsList
         return $this->resolve()[1];
     }
 
+    /**
+     * @return list<array{
+     *     label: string,
+     *     confidence: float,
+     *     basis: ?string,
+     *     predicate: string,
+     *     source: string
+     * }>
+     */
+    public function getTagClaimViews(): array
+    {
+        $claims = $this->getClaims();
+        $rows = [];
+
+        for ($i = 0, $count = count($claims); $i < $count; $i++) {
+            $claim = $claims[$i];
+            $label = $this->claimLabel($claim->value);
+
+            if ($legacy = $this->legacyTripletView($claims, $i, $label)) {
+                $rows[] = $legacy;
+                $i += 2;
+                continue;
+            }
+
+            if ($this->confidenceWord($claim->value) !== null) {
+                continue;
+            }
+
+            $rows[] = [
+                'label' => $label,
+                'confidence' => $claim->confidence,
+                'basis' => $claim->basis,
+                'predicate' => $claim->predicate,
+                'source' => $claim->source,
+            ];
+        }
+
+        usort($rows, static fn(array $a, array $b): int => $b['confidence'] <=> $a['confidence']);
+
+        return $rows;
+    }
+
+    /**
+     * Older imports sometimes stored keyword triplets as three adjacent claims:
+     * term, confidence word, basis. Render those as one tag claim without
+     * treating "medium" or "high" as tags.
+     *
+     * @param list<Claim> $claims
+     * @return array{label: string, confidence: float, basis: ?string, predicate: string, source: string}|null
+     */
+    private function legacyTripletView(array $claims, int $offset, string $label): ?array
+    {
+        if ($offset + 2 >= count($claims)) {
+            return null;
+        }
+
+        $claim = $claims[$offset];
+        $confidence = $this->confidenceWord($claims[$offset + 1]->value);
+        if (
+            $confidence !== null
+            && $this->isSameClaimSeries($claim, $claims[$offset + 1])
+            && $this->isSameClaimSeries($claim, $claims[$offset + 2])
+        ) {
+                $rows[] = [
+                    'label' => $label,
+                'confidence' => $confidence,
+                'basis' => $this->claimLabel($claims[$offset + 2]->value),
+                    'predicate' => $claim->predicate,
+                    'source' => $claim->source,
+                ];
+        }
+
+        return null;
+    }
+
     /** @return array{0: ?string, 1: ?string} */
     private function resolve(): array
     {
@@ -140,5 +215,47 @@ final class AiClaimsList
         }
 
         return [$type, $id];
+    }
+
+    private function isSameClaimSeries(Claim $a, Claim $b): bool
+    {
+        return $a->predicate === $b->predicate && $a->source === $b->source;
+    }
+
+    private function confidenceWord(mixed $value): ?float
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        return match (strtolower(trim($value))) {
+            'high' => 0.9,
+            'medium' => 0.6,
+            'low' => 0.3,
+            default => null,
+        };
+    }
+
+    private function claimLabel(mixed $value): string
+    {
+        if (is_array($value)) {
+            foreach (['name', 'term', 'label', 'value', 'text', 'claim'] as $field) {
+                if (isset($value[$field]) && (is_string($value[$field]) || is_numeric($value[$field]))) {
+                    return trim((string) $value[$field]);
+                }
+            }
+
+            return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '—';
+        }
+
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'yes' : 'no';
+        }
+
+        return trim((string) $value);
     }
 }

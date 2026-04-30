@@ -1,28 +1,41 @@
 {% set claims = this.ocrClaims %}
 
 {% if claims is empty %}
-    <div class="alert alert-danger small mb-0">
-        No text claims found. Run OCR/HTR so this panel reads from the claim table.
-    </div>
+    <div class="p-3 text-muted small">No text found yet. OCR runs automatically after triage.</div>
 {% else %}
     {% for claim in claims %}
         {% set label = claim.predicate == constant('Survos\\AiClaimsBundle\\Entity\\Claim::PRED_HTR_TEXT')
-            ? 'HTR'
-            : (claim.predicate == constant('Survos\\AiClaimsBundle\\Entity\\Claim::PRED_PRINTED_TEXT') ? 'Printed text' : 'OCR') %}
-        <div class="card mb-2">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span class="fw-semibold">{{ label }}</span>
+            ? 'Handwritten text'
+            : (claim.predicate == constant('Survos\\AiClaimsBundle\\Entity\\Claim::PRED_PRINTED_TEXT') ? 'Printed text' : 'Searchable text') %}
+
+        {#
+          Reflow Tesseract word-per-line output into readable paragraphs.
+          Split on blank lines → paragraph breaks; collapse single newlines → spaces.
+        #}
+        {% set raw = claim.value|trim %}
+        {% set chunks = raw|replace({'\r\n': '\n', '\r': '\n'})|split('\n\n') %}
+
+        <div class="mb-2">
+            <div class="d-flex justify-content-between align-items-center px-3 pt-2 pb-1">
+                <span class="fw-semibold small text-muted text-uppercase" style="letter-spacing:.05em;">{{ label }}</span>
                 <span class="d-flex align-items-center gap-2">
-                    <span class="badge bg-secondary-lt font-monospace">{{ claim.value|length }} chars</span>
+                    <span class="badge bg-secondary-lt font-monospace">{{ raw|length }} chars</span>
                     <span class="badge text-bg-{{ claim.confidence >= 0.8 ? 'success' : (claim.confidence >= 0.5 ? 'warning' : 'secondary') }}">
-                        {{ claim.confidence|number_format(2) }}
+                        {{ (claim.confidence * 100)|round }}%
                     </span>
                 </span>
             </div>
-            <div class="card-body p-0">
-                <pre class="p-3 mb-0" style="max-height:360px;overflow-y:auto;white-space:pre-wrap;background:var(--tblr-bg-surface-secondary, #f8fafc);color:var(--tblr-body-color, #1f2937);font-family:var(--tblr-font-sans-serif, system-ui, sans-serif);font-size:.9rem;line-height:1.45;">{{ claim.value }}</pre>
+
+            <div class="px-3 pb-3" style="max-height:400px; overflow-y:auto; font-size:.9rem; line-height:1.7; color:var(--tblr-body-color,#1f2937);">
+                {% for chunk in chunks %}
+                    {% set para = chunk|replace({'\n': ' '})|replace({'  ': ' '})|trim %}
+                    {% if para %}
+                        <p class="mb-2">{{ para }}</p>
+                    {% endif %}
+                {% endfor %}
             </div>
-            <div class="card-footer small text-muted d-flex justify-content-between gap-2 flex-wrap py-1">
+
+            <div class="px-3 pb-2 small text-muted d-flex justify-content-between gap-2 border-top pt-1" style="font-size:.75rem;">
                 <span class="font-monospace">{{ claim.source }}</span>
                 {% if claim.basis %}<span>{{ claim.basis }}</span>{% endif %}
             </div>

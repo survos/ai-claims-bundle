@@ -83,6 +83,9 @@ class Claim
     public const PRED_HTR_TEXT         = 'ai:htrText';
     public const PRED_PRINTED_TEXT     = 'ai:printedText';
     public const PRED_SPECULATION      = 'ai:speculation';
+    public const PRED_PIXELS_DONE      = 'ai:pixelsDone';
+    public const PRED_HIGH_RES_GOAL    = 'ai:highResGoal';
+    public const PRED_HIGH_RES_TARGET  = 'ai:highResTarget';
 
     /**
      * Semantically-packed ~400-char summary used by search (e.g. Meili's

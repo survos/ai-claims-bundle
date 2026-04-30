@@ -18,31 +18,25 @@
         {# Tag / subject view — one claim per row: a coloured chip with the term,
            uncertainty marker, and the basis in muted prose. Ordering keeps the
            most confident claims on top. #}
-        {% set sorted = claims|sort((a, b) => b.confidence <=> a.confidence) %}
+        {% set rows = this.tagClaimViews %}
         <div class="d-flex flex-column gap-1">
-            {% for claim in sorted %}
-                {% set c = claim.confidence %}
+            {% for row in rows %}
+                {% set c = row.confidence %}
                 {% set tier = c >= 0.85 ? 'high' : (c >= 0.55 ? 'medium' : 'low') %}
                 {% set suffix = tier == 'high' ? '' : (tier == 'medium' ? '?' : '??') %}
                 {% set badgeClass = tier == 'high' ? 'text-bg-success' : (tier == 'medium' ? 'text-bg-warning' : 'text-bg-secondary') %}
-                {% set value = claim.value %}
-                {% if value is iterable %}
-                    {% set label = value.name ?? value.term ?? value.label ?? (value|json_encode) %}
-                {% else %}
-                    {% set label = value|default('—') %}
-                {% endif %}
 
                 <div class="d-flex align-items-baseline gap-2 flex-wrap py-1 border-bottom">
-                    <span class="badge {{ badgeClass }}" title="confidence {{ c|number_format(2) }} · {{ claim.predicate }}">
-                        {{ label }}{{ suffix }}
+                    <span class="badge {{ badgeClass }}" title="confidence {{ c|number_format(2) }} · {{ row.predicate }}">
+                        {{ row.label }}{{ suffix }}
                     </span>
-                    {% if claim.basis %}
-                        <span class="small text-muted fst-italic flex-grow-1">{{ claim.basis }}</span>
+                    {% if row.basis %}
+                        <span class="small text-muted fst-italic flex-grow-1">{{ row.basis }}</span>
                     {% else %}
                         <span class="small text-muted">—</span>
                     {% endif %}
                     <span class="small text-muted font-monospace" style="font-size:.68rem;">
-                        {{ claim.predicate }} · {{ c|number_format(2) }}
+                        {{ row.predicate }} · {{ c|number_format(2) }}
                     </span>
                 </div>
             {% endfor %}
