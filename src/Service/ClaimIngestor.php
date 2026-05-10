@@ -12,7 +12,7 @@ use Survos\AiClaimsBundle\Repository\ClaimRunRepository;
 use Symfony\Component\Uid\Ulid;
 
 /**
- * Writes a batch of ClaimDrafts as rows for a given subject and source, and
+ * Writes a batch of RawClaims as rows for a given subject and source, and
  * records a sibling ClaimRun audit row with whatever call metadata the caller
  * has on hand (prompt text, model, tokens, duration).
  *
@@ -29,7 +29,7 @@ final class ClaimIngestor
     ) {}
 
     /**
-     * @param list<ClaimDraft> $drafts
+     * @param list<RawClaim> $rawClaims
      * @return string The runId shared by every persisted Claim + its ClaimRun row.
      */
     public function record(
@@ -37,7 +37,7 @@ final class ClaimIngestor
         string $subjectType,
         string $subjectId,
         string $source,
-        array $drafts,
+        array $rawClaims,
         ?RunMeta $meta = null,
         ?string $runId = null,
     ): ClaimRun {
@@ -62,21 +62,21 @@ final class ClaimIngestor
             outputTokens: $meta?->outputTokens,
             imageTokens:  $meta?->imageTokens,
             durationMs:   $meta?->durationMs,
-            claimCount:   count($drafts),
+            claimCount:   count($rawClaims),
             id:           $runId,
         );
         $this->em->persist($run);
 
-        foreach ($drafts as $draft) {
+        foreach ($rawClaims as $rawClaim) {
             $claim = new Claim(
                 scope:       $scope,
                 subjectType: $subjectType,
                 subjectId:   $subjectId,
-                predicate:   $draft->predicate,
+                predicate:   $rawClaim->predicate,
                 source:      $source,
-                value:       $draft->value,
-                confidence:  $draft->confidence,
-                basis:       $draft->basis,
+                value:       $rawClaim->value,
+                confidence:  $rawClaim->confidence,
+                basis:       $rawClaim->basis,
                 runId:       $runId,
             );
             $this->em->persist($claim);
