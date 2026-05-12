@@ -1,0 +1,67 @@
+{% if this.ctx %}
+<table class="table table-sm table-borderless mb-0">
+
+  {% macro renderValue(type, value) %}
+    {% if type == 'badges' %}
+      {% for v in (value is iterable ? value : [value]) %}
+        <span class="badge bg-secondary-lt me-1">
+          {% if v is same as(null) %}
+            —
+          {% elseif v is iterable %}
+            {{ v|json_encode }}
+          {% else %}
+            {{ v }}
+          {% endif %}
+        </span>
+      {% endfor %}
+    {% elseif type == 'url' %}
+      <a href="{{ value }}" target="_blank" rel="noopener" class="text-truncate d-inline-block" style="max-width:300px">
+        {{ value|slice(0,60) }}{% if value|length > 60 %}…{% endif %}
+      </a>
+    {% elseif type == 'bool' %}
+      <span class="badge {{ value ? 'bg-green-lt' : 'bg-secondary-lt' }}">
+        {{ value ? 'yes' : 'no' }}
+      </span>
+    {% else %}
+      {% if value is same as(null) %}
+        —
+      {% elseif value is iterable %}
+        {{ value|json_encode }}
+      {% else %}
+        {{ value }}
+      {% endif %}
+    {% endif %}
+  {% endmacro %}
+
+  {# Content type badge #}
+  {% if this.contentType() ?? false %}
+    <tr>
+      <th colspan="2" class="text-muted small pt-2 pb-1">
+        <a href="{{ this.contentTypeUri() }}" target="_blank" rel="noopener" class="text-decoration-none">
+          <span class="badge bg-azure-lt">{{ this.contentTypeLabel() }}</span>
+        </a>
+      </th>
+    </tr>
+  {% endif %}
+
+  {# Schema-driven fields #}
+  {% for field in this.fields() %}
+    <tr>
+      <th class="text-muted fw-normal pe-3" style="width:30%;white-space:nowrap">{{ field.label }}</th>
+      <td>{{ _self.renderValue(field.type, field.value) }}</td>
+    </tr>
+  {% endfor %}
+
+  {# Extra fields not in schema #}
+  {% if this.extraFields() ?? false %}
+    <tr><th colspan="2" class="text-muted small border-top pt-2 pb-0">Other</th></tr>
+    {% for field in this.extraFields() %}
+      <tr>
+        <th class="text-muted fw-normal pe-3" style="width:30%;white-space:nowrap">{{ field.label }}</th>
+        <td>{{ _self.renderValue(field.type, field.value) }}</td>
+      </tr>
+    {% endfor %}
+  {% endif %}
+
+</table>
+{% endif %}

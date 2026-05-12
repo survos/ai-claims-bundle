@@ -71,6 +71,30 @@ final class ClaimRepository extends ServiceEntityRepository
     }
 
     /**
+     * Most-recently created claim for a given predicate and subject.
+     */
+    public function findLatestByPredicate(
+        string $subjectType,
+        string $subjectId,
+        string $predicate,
+        ?string $scope = null,
+    ): ?Claim {
+        $qb = $this->createQueryBuilder('c')
+            ->andWhere('c.subjectType = :st')->setParameter('st', $subjectType)
+            ->andWhere('c.subjectId = :sid')->setParameter('sid', $subjectId)
+            ->andWhere('c.predicate = :pred')->setParameter('pred', $predicate)
+            ->orderBy('c.createdAt', 'DESC')
+            ->setMaxResults(1);
+
+        if ($scope !== null) {
+            $qb->andWhere('c.scope = :scope')->setParameter('scope', $scope);
+        }
+
+        /** @var Claim|null */
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
      * @return iterable<Claim>
      */
     public function iterateForExport(?string $scope = null, ?string $subjectType = null, ?string $source = null): iterable

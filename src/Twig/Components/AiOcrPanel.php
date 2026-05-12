@@ -30,6 +30,7 @@ final class AiOcrPanel
         }
 
         $wanted = [
+            'ai:observationProse' => true,
             Claim::PRED_HTR_TEXT => true,
             Claim::PRED_PRINTED_TEXT => true,
             Claim::PRED_OCR_TEXT => true,
@@ -54,9 +55,10 @@ final class AiOcrPanel
 
         usort($claims, static function (Claim $a, Claim $b): int {
             $rank = [
-                Claim::PRED_HTR_TEXT => 3,
-                Claim::PRED_PRINTED_TEXT => 2,
-                Claim::PRED_OCR_TEXT => 1,
+                'ai:observationProse'      => 4,
+                Claim::PRED_HTR_TEXT       => 3,
+                Claim::PRED_PRINTED_TEXT   => 2,
+                Claim::PRED_OCR_TEXT       => 1,
             ];
             $rankCmp = ($rank[$b->predicate] ?? 0) <=> ($rank[$a->predicate] ?? 0);
             if ($rankCmp !== 0) {
