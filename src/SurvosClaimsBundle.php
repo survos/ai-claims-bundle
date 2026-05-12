@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle;
+namespace Survos\ClaimsBundle;
 
-use Survos\AiClaimsBundle\Command\ClaimsExportCommand;
-use Survos\AiClaimsBundle\Command\ClaimsImportCommand;
-use Survos\AiClaimsBundle\Repository\ClaimRepository;
-use Survos\AiClaimsBundle\Repository\ClaimRunRepository;
-use Survos\AiClaimsBundle\Service\ClaimAggregator;
-use Survos\AiClaimsBundle\Service\ClaimIngestor;
-use Survos\AiClaimsBundle\Twig\Components\AiClaimsList;
-use Survos\AiClaimsBundle\Twig\Components\AiClaimsSummary;
-use Survos\AiClaimsBundle\Twig\ClaimConstantsExtension;
-use Survos\AiClaimsBundle\Twig\Components\AiOcrPanel;
-use Survos\AiClaimsBundle\Twig\Components\SourceMetadata;
+use Survos\ClaimsBundle\Command\ClaimsExportCommand;
+use Survos\ClaimsBundle\Command\ClaimsImportCommand;
+use Survos\ClaimsBundle\Repository\ClaimRepository;
+use Survos\ClaimsBundle\Repository\ClaimRunRepository;
+use Survos\ClaimsBundle\Service\ClaimAggregator;
+use Survos\ClaimsBundle\Service\ClaimIngestor;
+use Survos\ClaimsBundle\Twig\Components\ClaimsList;
+use Survos\ClaimsBundle\Twig\Components\ClaimsSummary;
+use Survos\ClaimsBundle\Twig\ClaimConstantsExtension;
+use Survos\ClaimsBundle\Twig\Components\OcrClaimsPanel;
+use Survos\ClaimsBundle\Twig\Components\SourceClaims;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
-final class SurvosAiClaimsBundle extends AbstractBundle
+final class SurvosClaimsBundle extends AbstractBundle
 {
     public function configure(DefinitionConfigurator $definition): void
     {
@@ -48,14 +48,14 @@ final class SurvosAiClaimsBundle extends AbstractBundle
             ->arg('$listPredicates', $config['list_predicates']);
         $services->set(ClaimsExportCommand::class);
         $services->set(ClaimsImportCommand::class);
-        $services->set(AiClaimsList::class);
-        $services->set(AiClaimsSummary::class);
-        $services->set(AiOcrPanel::class);
-        $services->set(SourceMetadata::class);
+        $services->set(ClaimsList::class);
+        $services->set(ClaimsSummary::class);
+        $services->set(OcrClaimsPanel::class);
+        $services->set(SourceClaims::class);
         $services->set(ClaimConstantsExtension::class);
 
         if (class_exists(\Survos\TablerBundle\Event\MenuEvent::class)) {
-            $services->set(\Survos\AiClaimsBundle\Menu\AiClaimsMenuSubscriber::class)
+            $services->set(\Survos\ClaimsBundle\Menu\ClaimsMenuSubscriber::class)
                 ->autowire()
                 ->autoconfigure();
         }
@@ -66,21 +66,21 @@ final class SurvosAiClaimsBundle extends AbstractBundle
         $builder->prependExtensionConfig('doctrine', [
             'orm' => [
                 'mappings' => [
-                    'SurvosAiClaimsBundle' => [
+                    'SurvosClaimsBundle' => [
                         'is_bundle' => false,
                         'type' => 'attribute',
                         'dir' => \dirname(__DIR__) . '/src/Entity',
-                        'prefix' => 'Survos\\AiClaimsBundle\\Entity',
-                        'alias' => 'AiClaims',
+                        'prefix' => 'Survos\\ClaimsBundle\\Entity',
+                        'alias' => 'Claims',
                     ],
                 ],
             ],
         ]);
 
-        // Expose bundle templates under @SurvosAiClaims for component + override.
+        // Expose bundle templates under @SurvosClaims for component + override.
         $builder->prependExtensionConfig('twig', [
             'paths' => [
-                \dirname(__DIR__) . '/templates' => 'SurvosAiClaims',
+                \dirname(__DIR__) . '/templates' => 'SurvosClaims',
             ],
         ]);
     }

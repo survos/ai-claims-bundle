@@ -5,7 +5,7 @@ Wiring the bundle into a Symfony app, end-to-end.
 ## 1. Install
 
 ```bash
-composer require survos/ai-claims-bundle
+composer require survos/claims-bundle
 ```
 
 Flex registers the bundle in `config/bundles.php` automatically.
@@ -19,8 +19,8 @@ Tell the aggregator which predicates produce lists. Everything else is
 treated as a scalar.
 
 ```yaml
-# config/packages/survos_ai_claims.yaml
-survos_ai_claims:
+# config/packages/survos_claims.yaml
+survos_claims:
     list_predicates:
         - dcterms:subject    # keywords
         - dcterms:spatial    # places
@@ -75,7 +75,7 @@ final class TenantClaimsCleanupListener
         if (!$entity instanceof Tenant) {
             return;
         }
-        $this->em->createQuery('DELETE Survos\AiClaimsBundle\Entity\Claim c WHERE c.scope = :s')
+        $this->em->createQuery('DELETE Survos\ClaimsBundle\Entity\Claim c WHERE c.scope = :s')
             ->setParameter('s', 'tenant:' . $entity->code)
             ->execute();
     }
@@ -87,12 +87,12 @@ is in the consuming app.
 
 ## 5. Write claims from your tool
 
-Each AI (or human) tool that produces claims:
+Each machine or human tool that produces claims:
 
 ```php
-use Survos\AiClaimsBundle\Service\ClaimDraft;
-use Survos\AiClaimsBundle\Service\ClaimIngestor;
-use Survos\DataBundle\Vocabulary\DcTerms;
+use Survos\ClaimsBundle\Service\ClaimIngestor;
+use Survos\ClaimsBundle\Service\RawClaim;
+use Survos\DataContracts\Vocabulary\DcTerms;
 
 final class EnrichFromThumbnailTool
 {
@@ -105,15 +105,15 @@ final class EnrichFromThumbnailTool
     {
         $result = $this->callLlm($image);  // returns a typed DTO
 
-        $drafts = [
-            new ClaimDraft(DcTerms::TITLE->value, $result->title, 0.9,
+        $rawClaims = [
+            new RawClaim(DcTerms::TITLE->value, $result->title, 0.9,
                 basis: $result->titleBasis),
-            new ClaimDraft(DcTerms::DESCRIPTION->value, $result->description, 0.8),
-            new ClaimDraft(DcTerms::TYPE->value, $result->contentType, 0.95),
+            new RawClaim(DcTerms::DESCRIPTION->value, $result->description, 0.8),
+            new RawClaim(DcTerms::TYPE->value, $result->contentType, 0.95),
         ];
 
         foreach ($result->keywords as $kw) {
-            $drafts[] = new ClaimDraft(
+            $rawClaims[] = new RawClaim(
                 predicate:  DcTerms::SUBJECT->value,
                 value:      $kw['term'],
                 confidence: $this->mapConfidence($kw['confidence']),
@@ -126,7 +126,7 @@ final class EnrichFromThumbnailTool
             subjectType: 'image',
             subjectId:   $image->getId(),
             source:      'enrich_from_thumbnail@1.0',
-            drafts:      $drafts,
+            rawClaims:   $rawClaims,
         );
         $this->em->flush();
     }
@@ -190,7 +190,7 @@ $this->ingestor->record(
     subjectType: 'image',
     subjectId:   $image->getId(),
     source:      'human:' . $user->getEmail(),
-    drafts:      [new ClaimDraft(DcTerms::TITLE->value, $corrected, 1.0,
+    rawClaims:   [new RawClaim(DcTerms::TITLE->value, $corrected, 1.0,
         basis: 'Operator verified.')],
 );
 ```

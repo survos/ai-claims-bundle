@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Service;
+namespace Survos\ClaimsBundle\Service;
 
 /**
  * Optional audit metadata for a ClaimIngestor::record() call.

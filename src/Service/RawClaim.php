@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Service;
+namespace Survos\ClaimsBundle\Service;
 
 /**
  * The producer-side shape of a claim — predicate/value/confidence/basis.

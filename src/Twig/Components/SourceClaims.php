@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Twig\Components;
+namespace Survos\ClaimsBundle\Twig\Components;
 
 use Survos\DataContracts\Dto\Item\BaseItemDto;
 use Survos\DataContracts\Metadata\ContentType;
@@ -11,15 +11,15 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
  * Renders source metadata (sourceMeta / ctx) for an Asset.
  *
  * Usage:
- *   <twig:SourceMetadata :ctx="asset.sourceMeta" />
+ *   <twig:SourceClaims :ctx="asset.sourceMeta" />
  *
  * The field schema comes from ContentType constants and BaseItemDto property names —
  * no hard-coded field lists in the template.
  *
  * Fields are ordered: core DC → type-specific → remainder (catch-all).
  */
-#[AsTwigComponent('SourceMetadata', template: '@SurvosAiClaims/components/SourceMetadata.html.twig')]
-final class SourceMetadata
+#[AsTwigComponent('SourceClaims', template: '@SurvosClaims/components/SourceClaims.html.twig')]
+final class SourceClaims
 {
     /** The sourceMeta array from the Asset */
     public array $ctx = [];

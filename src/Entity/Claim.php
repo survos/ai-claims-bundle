@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Entity;
+namespace Survos\ClaimsBundle\Entity;
 
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
@@ -14,13 +14,13 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Survos\AiClaimsBundle\Repository\ClaimRepository;
+use Survos\ClaimsBundle\Repository\ClaimRepository;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Uid\Ulid;
 use Survos\FieldBundle\Attribute\EntityMeta;
 
 /**
- * A single AI (or human) assertion about a subject — the uniform envelope
+ * A single machine or human assertion about a subject — the uniform envelope
  * for every predicate a tool emits. Claims are append-only: rerunning a tool
  * deletes the prior run's rows for that (scope, subject, source) and writes
  * fresh ones.
@@ -34,7 +34,7 @@ use Survos\FieldBundle\Attribute\EntityMeta;
  * The bundle never interprets it; indexes include it so the app can enforce
  * scope-isolation at query time.
  */
-#[EntityMeta(icon: 'mdi:tag-check-outline', group: 'AI')]
+#[EntityMeta(icon: 'mdi:tag-check-outline', group: 'Claims')]
 #[ORM\Entity(repositoryClass: ClaimRepository::class)]
 #[ORM\Table(name: 'claim')]
 #[ORM\Index(fields: ['scope', 'subjectType', 'subjectId', 'predicate'], name: 'idx_claim_scope_subject_pred')]

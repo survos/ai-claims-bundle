@@ -1,9 +1,9 @@
-# Survos AiClaimsBundle
+# Survos ClaimsBundle
 
-Store AI (and human) assertions as **append-only claims** with `confidence`,
-`basis`, and `source` — an alternative to opaque AI-result blobs.
+Store machine, human, and source assertions as **append-only claims** with
+`confidence`, `basis`, and `source`.
 
-An AI output is an assertion, not a fact. Recording it as a structured claim
+Generated metadata is an assertion, not a fact. Recording it as a structured claim
 lets you:
 
 - know *how confident* the tool was (the `confidence` float)
@@ -20,7 +20,7 @@ string that the consumer partitions on).
 ## Install
 
 ```bash
-composer require survos/ai-claims-bundle
+composer require survos/claims-bundle
 ```
 
 The bundle is a flex-compatible Symfony bundle and auto-registers in
@@ -30,8 +30,8 @@ automatically, like the other Survos bundles.
 Register list-valued predicates so the aggregator projects them correctly:
 
 ```yaml
-# config/packages/survos_ai_claims.yaml
-survos_ai_claims:
+# config/packages/survos_claims.yaml
+survos_claims:
     list_predicates:
         - dcterms:subject    # keywords
         - dcterms:spatial    # places
@@ -66,26 +66,26 @@ bin/console claims:import --scope=tenant:rhs --input=rhs.jsonl.gz
 ### Recording a tool run
 
 ```php
-use Survos\AiClaimsBundle\Service\ClaimDraft;
-use Survos\AiClaimsBundle\Service\ClaimIngestor;
-use Survos\DataBundle\Vocabulary\DcTerms;
+use Survos\ClaimsBundle\Service\ClaimIngestor;
+use Survos\ClaimsBundle\Service\RawClaim;
+use Survos\DataContracts\Vocabulary\DcTerms;
 
-$drafts = [
-    new ClaimDraft(DcTerms::TITLE->value,       'Welcome to Ocean City', 0.9,
+$rawClaims = [
+    new RawClaim(DcTerms::TITLE->value,       'Welcome to Ocean City', 0.9,
         basis: "Printed caption reads 'Welcome to Ocean City'."),
-    new ClaimDraft(DcTerms::DESCRIPTION->value, 'Beach scene with boardwalk.', 0.8),
-    new ClaimDraft(DcTerms::TYPE->value,        'postcard', 0.95),
-    new ClaimDraft(DcTerms::SUBJECT->value,     'boardwalk', 0.9),
-    new ClaimDraft(DcTerms::SUBJECT->value,     'seaside',   0.8),
-    new ClaimDraft('ssai:has_text',             true,        1.0),
+    new RawClaim(DcTerms::DESCRIPTION->value, 'Beach scene with boardwalk.', 0.8),
+    new RawClaim(DcTerms::TYPE->value,        'postcard', 0.95),
+    new RawClaim(DcTerms::SUBJECT->value,     'boardwalk', 0.9),
+    new RawClaim(DcTerms::SUBJECT->value,     'seaside',   0.8),
+    new RawClaim('ssai:has_text',             true,        1.0),
 ];
 
-$runId = $ingestor->record(
+$run = $ingestor->record(
     scope:       'tenant:rhs',
     subjectType: 'image',
     subjectId:   $image->getId(),
     source:      'enrich_from_thumbnail@1.0',
-    drafts:      $drafts,
+    rawClaims:   $rawClaims,
 );
 $em->flush();
 ```
@@ -96,7 +96,7 @@ whole batch shares one `runId`.
 ### Reading the best-guess view
 
 ```php
-use Survos\AiClaimsBundle\Service\ClaimAggregator;
+use Survos\ClaimsBundle\Service\ClaimAggregator;
 
 $view = $aggregator->aggregate('image', $image->getId(), 'tenant:rhs');
 

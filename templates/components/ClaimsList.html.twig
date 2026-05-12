@@ -3,7 +3,7 @@
 {% set subjectId   = this.resolvedSubjectId %}
 {% set layout      = this.layout ?? 'table' %}
 
-<div class="ai-claims-list">
+<div class="claims-list">
     <div class="small text-muted mb-2 d-flex gap-2 flex-wrap">
         <span>Subject: <span class="font-monospace">{{ subjectType ?? '—' }}:{{ subjectId ?? '—' }}</span></span>
         <span class="ms-auto">{{ claims|length }} claim{{ claims|length == 1 ? '' : 's' }}</span>

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Command;
+namespace Survos\ClaimsBundle\Command;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Survos\AiClaimsBundle\Entity\Claim;
+use Survos\ClaimsBundle\Entity\Claim;
 use Survos\JsonlBundle\IO\JsonlReader;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;

@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Twig\Components;
+namespace Survos\ClaimsBundle\Twig\Components;
 
-use Survos\AiClaimsBundle\Entity\Claim;
-use Survos\AiClaimsBundle\Repository\ClaimRepository;
+use Survos\ClaimsBundle\Entity\Claim;
+use Survos\ClaimsBundle\Repository\ClaimRepository;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 /**
  * Generic claims list for any subject (image, item, …).
  *
  * Usage:
- *   <twig:AiClaimsList subjectType="image" :subjectId="image.id"/>
- *   <twig:AiClaimsList :subject="image"/>       {# type derived from class short-name #}
- *   <twig:AiClaimsList :subject="image" source="enrich_from_thumbnail@1.0"/>
+ *   <twig:ClaimsList subjectType="image" :subjectId="image.id"/>
+ *   <twig:ClaimsList :subject="image"/>       {# type derived from class short-name #}
+ *   <twig:ClaimsList :subject="image" source="enrich_from_thumbnail@1.0"/>
  */
-#[AsTwigComponent('AiClaimsList', template: '@SurvosAiClaims/components/AiClaimsList.html.twig')]
-final class AiClaimsList
+#[AsTwigComponent('ClaimsList', template: '@SurvosClaims/components/ClaimsList.html.twig')]
+final class ClaimsList
 {
     public ?object $subject = null;
 

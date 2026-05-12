@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Twig\Components;
+namespace Survos\ClaimsBundle\Twig\Components;
 
-use Survos\AiClaimsBundle\Service\ClaimAggregator;
+use Survos\ClaimsBundle\Service\ClaimAggregator;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
-#[AsTwigComponent('AiClaimsSummary', template: '@SurvosAiClaims/components/AiClaimsSummary.html.twig')]
-final class AiClaimsSummary
+#[AsTwigComponent('ClaimsSummary', template: '@SurvosClaims/components/ClaimsSummary.html.twig')]
+final class ClaimsSummary
 {
     public ?object $subject = null;
 

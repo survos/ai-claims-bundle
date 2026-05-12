@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Menu;
+namespace Survos\ClaimsBundle\Menu;
 
-use Survos\AiClaimsBundle\Entity\Claim;
-use Survos\AiClaimsBundle\Entity\ClaimRun;
+use Survos\ClaimsBundle\Entity\Claim;
+use Survos\ClaimsBundle\Entity\ClaimRun;
 use Survos\TablerBundle\Event\MenuEvent;
 use Survos\TablerBundle\Menu\AbstractAdminMenuSubscriber;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
-class AiClaimsMenuSubscriber extends AbstractAdminMenuSubscriber
+class ClaimsMenuSubscriber extends AbstractAdminMenuSubscriber
 {
-    protected function getLabel(): string { return 'AI Claims'; }
+    protected function getLabel(): string { return 'Claims'; }
     protected function getResourceClasses(): array
     {
         return [

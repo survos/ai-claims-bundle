@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Entity;
+namespace Survos\ClaimsBundle\Entity;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
@@ -10,7 +10,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Survos\AiClaimsBundle\Repository\ClaimRunRepository;
+use Survos\ClaimsBundle\Repository\ClaimRunRepository;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Uid\Ulid;
 use Survos\FieldBundle\Attribute\EntityMeta;
@@ -28,7 +28,7 @@ use Survos\FieldBundle\Attribute\EntityMeta;
  * fresh ones — so "the current run" for a source is always the one whose
  * claims exist right now.
  */
-#[EntityMeta(icon: 'mdi:tag-multiple-outline', group: 'AI')]
+#[EntityMeta(icon: 'mdi:tag-multiple-outline', group: 'Claims')]
 #[ORM\Entity(repositoryClass: ClaimRunRepository::class)]
 #[ORM\Table(name: 'claim_run')]
 #[ORM\Index(fields: ['scope', 'subjectType', 'subjectId', 'source'], name: 'idx_claim_run_scope_subject_source')]

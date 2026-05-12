@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Command;
+namespace Survos\ClaimsBundle\Command;
 
-use Survos\AiClaimsBundle\Entity\Claim;
-use Survos\AiClaimsBundle\Repository\ClaimRepository;
+use Survos\ClaimsBundle\Entity\Claim;
+use Survos\ClaimsBundle\Repository\ClaimRepository;
 use Survos\JsonlBundle\IO\JsonlWriter;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Service;
+namespace Survos\ClaimsBundle\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Survos\AiClaimsBundle\Entity\Claim;
-use Survos\AiClaimsBundle\Entity\ClaimRun;
-use Survos\AiClaimsBundle\Repository\ClaimRepository;
-use Survos\AiClaimsBundle\Repository\ClaimRunRepository;
+use Survos\ClaimsBundle\Entity\Claim;
+use Survos\ClaimsBundle\Entity\ClaimRun;
+use Survos\ClaimsBundle\Repository\ClaimRepository;
+use Survos\ClaimsBundle\Repository\ClaimRunRepository;
 use Symfony\Component\Uid\Ulid;
 
 /**

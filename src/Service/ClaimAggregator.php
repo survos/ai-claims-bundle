@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Service;
+namespace Survos\ClaimsBundle\Service;
 
-use Survos\AiClaimsBundle\Entity\Claim;
-use Survos\AiClaimsBundle\Repository\ClaimRepository;
+use Survos\ClaimsBundle\Entity\Claim;
+use Survos\ClaimsBundle\Repository\ClaimRepository;
 
 /**
  * Projects raw claims into a "best-guess per predicate" view.

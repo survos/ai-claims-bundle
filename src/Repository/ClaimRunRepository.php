@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Repository;
+namespace Survos\ClaimsBundle\Repository;
 
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use Survos\AiClaimsBundle\Entity\ClaimRun;
+use Survos\ClaimsBundle\Entity\ClaimRun;
 
 /**
  * @extends ServiceEntityRepository<ClaimRun>

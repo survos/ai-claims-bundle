@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Twig;
+namespace Survos\ClaimsBundle\Twig;
 
-use Survos\AiClaimsBundle\Entity\Claim;
+use Survos\ClaimsBundle\Entity\Claim;
 use Twig\Extension\AbstractExtension;
 use Twig\Extension\GlobalsInterface;
 
@@ -14,7 +14,7 @@ use Twig\Extension\GlobalsInterface;
  * e.g. CLAIM_PRED_HTR_TEXT, CLAIM_PRED_OCR_TEXT, CLAIM_SUBJECT_IMAGE
  *
  * Lets templates compare claim predicates without using the brittle
- * constant('Survos\\AiClaimsBundle\\Entity\\Claim::PRED_HTR_TEXT') syntax.
+ * constant('Survos\\ClaimsBundle\\Entity\\Claim::PRED_HTR_TEXT') syntax.
  */
 final class ClaimConstantsExtension extends AbstractExtension implements GlobalsInterface
 {

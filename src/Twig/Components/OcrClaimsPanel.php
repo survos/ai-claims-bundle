@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Survos\AiClaimsBundle\Twig\Components;
+namespace Survos\ClaimsBundle\Twig\Components;
 
-use Survos\AiClaimsBundle\Entity\Claim;
-use Survos\AiClaimsBundle\Repository\ClaimRepository;
+use Survos\ClaimsBundle\Entity\Claim;
+use Survos\ClaimsBundle\Repository\ClaimRepository;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
-#[AsTwigComponent('AiOcrPanel', template: '@SurvosAiClaims/components/AiOcrPanel.html.twig')]
-final class AiOcrPanel
+#[AsTwigComponent('OcrClaimsPanel', template: '@SurvosClaims/components/OcrClaimsPanel.html.twig')]
+final class OcrClaimsPanel
 {
     public ?object $subject = null;
 

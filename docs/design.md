@@ -82,7 +82,7 @@ Claims are never mutated. When a tool reruns:
 
 1. `ClaimIngestor::record($scope, $subjectType, $subjectId, $source, $drafts)`
 2. deletes all prior rows with the same `(scope, subjectType, subjectId, source)`
-3. persists the new drafts under a fresh `runId`.
+3. persists the new raw claims under a fresh `runId`.
 
 This means you never have to worry about "how do I update the existing
 claim?" — you don't, you rerun. Two versions of the same tool (v1 and
@@ -92,12 +92,12 @@ deprecate v1.
 Human corrections are just another source:
 
 ```php
-new ClaimDraft(DcTerms::TITLE->value, 'Welcome to Ocean City, MD', 1.0,
+$rawClaim = new RawClaim(DcTerms::TITLE->value, 'Welcome to Ocean City, MD', 1.0,
     basis: 'Operator verified against original postcard.');
 
 $ingestor->record($scope, 'image', $imageId,
     source: 'human:tac@example.com',
-    drafts: [$draft]);
+    rawClaims: [$rawClaim]);
 ```
 
 The aggregator then weighs human source vs AI source per its policy (usually
@@ -114,7 +114,7 @@ map of predicate → best-guess claim.
   dedup on value, confidence = max across contributing sources.
 
 Which predicates are list-valued is app-configured
-(`survos_ai_claims.list_predicates`) since the bundle doesn't own the
+(`survos_claims.list_predicates`) since the bundle doesn't own the
 vocabulary.
 
 The aggregator's output is itself claim-shaped (same `{value, confidence,
@@ -130,7 +130,7 @@ time — if the Claim entity grows a field, old JSONL imports still work
 This is why the bundle is storage-layer-only. The lifecycle is:
 
 ```
-tool runs → ClaimDraft[] → ClaimIngestor → claim rows
+tool runs → RawClaim[] → ClaimIngestor → claim rows
      ↑                                          ↓
      └── on rerun: delete by source ──────────── ↓
                                                  ↓
