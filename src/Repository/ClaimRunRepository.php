@@ -19,6 +19,25 @@ final class ClaimRunRepository extends ServiceEntityRepository
     }
 
     /**
+     * Stream all runs for a scope, ordered by createdAt. Used for export.
+     *
+     * @return iterable<ClaimRun>
+     */
+    public function iterateForExport(?string $scope = null, ?string $subjectType = null): iterable
+    {
+        $qb = $this->createQueryBuilder('r')->orderBy('r.createdAt', 'ASC');
+
+        if ($scope !== null) {
+            $qb->andWhere('r.scope = :scope')->setParameter('scope', $scope);
+        }
+        if ($subjectType !== null) {
+            $qb->andWhere('r.subjectType = :st')->setParameter('st', $subjectType);
+        }
+
+        return $qb->getQuery()->toIterable();
+    }
+
+    /**
      * The runs that produced the live claims for this (subject, source) pair.
      * Under append-only semantics this is normally just one row.
      *

@@ -22,12 +22,10 @@
         <div class="d-flex flex-column gap-1">
             {% for row in rows %}
                 {% set c = row.confidence %}
-                {% set tier = c >= 0.85 ? 'high' : (c >= 0.55 ? 'medium' : 'low') %}
-                {% set suffix = tier == 'high' ? '' : (tier == 'medium' ? '?' : '??') %}
-                {% set badgeClass = tier == 'high' ? 'text-bg-success' : (tier == 'medium' ? 'text-bg-warning' : 'text-bg-secondary') %}
+                {% set suffix = c >= 85 ? '' : (c >= 55 ? '?' : '??') %}
 
                 <div class="d-flex align-items-baseline gap-2 flex-wrap py-1 border-bottom">
-                    <span class="badge {{ badgeClass }}" title="confidence {{ c|number_format(2) }} · {{ row.predicate }}">
+                    <span class="badge text-bg-{{ confidence_class(c) }}" title="{{ c }}% · {{ row.predicate }}">
                         {{ row.label }}{{ suffix }}
                     </span>
                     {% if row.basis %}
@@ -36,7 +34,7 @@
                         <span class="small text-muted">—</span>
                     {% endif %}
                     <span class="small text-muted font-monospace" style="font-size:.68rem;">
-                        {{ row.predicate }} · {{ c|number_format(2) }}
+                        {{ row.predicate }} · {{ c }}%
                     </span>
                 </div>
             {% endfor %}
@@ -69,20 +67,30 @@
                         </thead>
                         <tbody>
                             {% for claim in group %}
-                                <tr>
-                                    <td class="font-monospace">{{ claim.predicate }}</td>
+                                {% set isFalse = claim.value is same as(false) %}
+                                <tr class="{{ isFalse ? 'text-muted' : '' }}">
+                                    <td class="font-monospace {{ isFalse ? 'text-decoration-line-through' : '' }}">{{ claim.predicate }}</td>
                                     <td style="max-width:0;">
-                                        {% if claim.value is iterable %}
-                                            <pre class="mb-0" style="white-space:pre-wrap;font-size:.7rem;max-height:140px;overflow:auto;">{{ claim.value|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                                        {% if isFalse %}
+                                            {# struck-through predicate communicates false; no value needed #}
+                                        {% elseif claim.value is same as(true) %}
+                                            <span class="badge bg-green-lt">yes</span>
+                                        {% elseif claim.value is iterable %}
+                                            {% set term = claim.value.term ?? claim.value.name ?? null %}
+                                            {% if term %}
+                                                <span>{{ term }}</span>
+                                            {% else %}
+                                                <pre class="mb-0" style="white-space:pre-wrap;font-size:.7rem;max-height:140px;overflow:auto;">{{ claim.value|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                                            {% endif %}
                                         {% else %}
                                             <div class="text-break">{{ claim.value }}</div>
                                         {% endif %}
                                     </td>
                                     <td class="text-end font-monospace">
-                                        {% set c = claim.confidence %}
-                                        <span class="badge text-bg-{{ c >= 0.8 ? 'success' : (c >= 0.5 ? 'warning' : 'secondary') }}">
-                                            {{ c|number_format(2) }}
-                                        </span>
+                                        {% if not isFalse %}
+                                            {% set c = claim.confidence %}
+                                            <span class="badge text-bg-{{ confidence_class(c) }}">{{ c }}%</span>
+                                        {% endif %}
                                     </td>
                                     <td class="text-muted" style="max-width:0;">
                                         {% if claim.basis %}

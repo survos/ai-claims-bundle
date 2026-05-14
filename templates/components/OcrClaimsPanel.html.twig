@@ -14,8 +14,8 @@
                 <span class="fw-semibold small text-muted text-uppercase" style="letter-spacing:.05em;">{{ label }}</span>
                 <span class="d-flex align-items-center gap-2">
                     <span class="badge bg-secondary-lt font-monospace">{{ claim.value|length }} chars</span>
-                    <span class="badge text-bg-{{ claim.confidence >= 0.8 ? 'success' : (claim.confidence >= 0.5 ? 'warning' : 'secondary') }}">
-                        {{ (claim.confidence * 100)|round }}%
+                    <span class="badge text-bg-{{ confidence_class(claim.confidence) }}">
+                        {{ claim.confidence }}%
                     </span>
                 </span>
             </div>

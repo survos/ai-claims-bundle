@@ -6,6 +6,7 @@ namespace Survos\ClaimsBundle\Twig\Components;
 
 use Survos\ClaimsBundle\Entity\Claim;
 use Survos\ClaimsBundle\Repository\ClaimRepository;
+use Survos\DataContracts\Dto\Claim\TermClaim;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 /**
@@ -49,6 +50,13 @@ final class ClaimsList
      * audit views compact when bulky text claims have a dedicated panel.
      */
     public ?string $excludePredicates = null;
+
+    /**
+     * Only include claims whose source ends with this suffix, e.g. "@import"
+     * to select all import/source claims regardless of aggregator name.
+     * Empty = no suffix filter.
+     */
+    public ?string $sourceSuffix = null;
 
     /**
      * Render style: 'table' (default — grouped by source, every field visible)
@@ -96,6 +104,14 @@ final class ClaimsList
                     static fn(Claim $c) => isset($wantedPred[$c->predicate]),
                 ));
             }
+        }
+
+        if ($this->sourceSuffix !== null && trim($this->sourceSuffix) !== '') {
+            $suffix = trim($this->sourceSuffix);
+            $claims = array_values(array_filter(
+                $claims,
+                static fn(Claim $c) => str_ends_with($c->source, $suffix),
+            ));
         }
 
         if ($this->excludePredicates !== null && trim($this->excludePredicates) !== '') {
@@ -238,14 +254,9 @@ final class ClaimsList
 
     private function claimLabel(mixed $value): string
     {
-        if (is_array($value)) {
-            foreach (['name', 'term', 'label', 'value', 'text', 'claim'] as $field) {
-                if (isset($value[$field]) && (is_string($value[$field]) || is_numeric($value[$field]))) {
-                    return trim((string) $value[$field]);
-                }
-            }
-
-            return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '—';
+        if (is_array($value) || $value instanceof \stdClass) {
+            $term = TermClaim::from($value);
+            return $term->term !== '' ? $term->term : '—';
         }
 
         if ($value === null || $value === '') {

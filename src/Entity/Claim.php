@@ -34,7 +34,7 @@ use Survos\FieldBundle\Attribute\EntityMeta;
  * The bundle never interprets it; indexes include it so the app can enforce
  * scope-isolation at query time.
  */
-#[EntityMeta(icon: 'mdi:tag-check-outline', group: 'Claims')]
+#[EntityMeta(icon: 'mdi:tag-search-outline', group: 'Claims')]
 #[ORM\Entity(repositoryClass: ClaimRepository::class)]
 #[ORM\Table(name: 'claim')]
 #[ORM\Index(fields: ['scope', 'subjectType', 'subjectId', 'predicate'], name: 'idx_claim_scope_subject_pred')]
@@ -96,6 +96,9 @@ class Claim
 
     /** FOAF standard — a named person. */
     public const PRED_PERSON           = 'foaf:Person';
+
+    /** Named organisation, institution, or corporate body. */
+    public const PRED_ORGANISATION     = 'ai:organisation';
 
     /**
      * Derive a single, human-describable text-type label from a bag of claims for one subject.
@@ -214,14 +217,14 @@ class Claim
         )]
         public private(set) mixed $value = null,
 
-        /** 0.0–1.0. Tool layer maps enum (high/medium/low) to floats here. */
-        #[ORM\Column(type: Types::FLOAT)]
+        /** 0–100. 100 = human-verified or directly observed. Tool layer normalises here. */
+        #[ORM\Column(type: Types::SMALLINT)]
         #[Groups(['claim:read'])]
         #[ApiProperty(
-            description: 'Confidence 0.0–1.0. Mapping convention: high=0.9, medium=0.6, low=0.3. Humans typically assert 1.0.',
-            example: 0.9,
+            description: 'Confidence 0–100. 100 = human-verified or directly stated. AI high≈90, medium≈70, low≈50.',
+            example: 90,
         )]
-        public private(set) float $confidence = 1.0,
+        public private(set) int $confidence = 100,
 
         /** Why the tool asserted this (prompt reasoning, visible evidence, …). */
         #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -284,7 +287,7 @@ class Claim
             predicate: $row['predicate'],
             source: $row['source'],
             value: $row['value'] ?? null,
-            confidence: isset($row['confidence']) ? (float) $row['confidence'] : 1.0,
+            confidence: isset($row['confidence']) ? (int) $row['confidence'] : 100,
             basis: isset($row['basis']) && \is_string($row['basis']) ? $row['basis'] : null,
             runId: isset($row['runId']) && \is_string($row['runId']) ? $row['runId'] : null,
         );

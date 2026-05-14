@@ -31,7 +31,7 @@ final class RawClaim
     public function __construct(
         public readonly string  $predicate,
         public readonly mixed   $value,
-        public readonly float   $confidence = 1.0,
+        public readonly int     $confidence = 100,
         public readonly ?string $basis      = null,
     ) {}
 }

@@ -10,9 +10,11 @@ use Survos\ClaimsBundle\Repository\ClaimRepository;
 use Survos\ClaimsBundle\Repository\ClaimRunRepository;
 use Survos\ClaimsBundle\Service\ClaimAggregator;
 use Survos\ClaimsBundle\Service\ClaimIngestor;
+use Survos\ClaimsBundle\Service\ClaimProjector;
 use Survos\ClaimsBundle\Twig\Components\ClaimsList;
 use Survos\ClaimsBundle\Twig\Components\ClaimsSummary;
 use Survos\ClaimsBundle\Twig\ClaimConstantsExtension;
+use Survos\ClaimsBundle\Twig\ClaimFunctionsExtension;
 use Survos\ClaimsBundle\Twig\Components\OcrClaimsPanel;
 use Survos\ClaimsBundle\Twig\Components\SourceClaims;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
@@ -44,6 +46,7 @@ final class SurvosClaimsBundle extends AbstractBundle
         $services->set(ClaimRepository::class);
         $services->set(ClaimRunRepository::class);
         $services->set(ClaimIngestor::class);
+        $services->set(ClaimProjector::class)->autowire()->autoconfigure();
         $services->set(ClaimAggregator::class)
             ->arg('$listPredicates', $config['list_predicates']);
         $services->set(ClaimsExportCommand::class);
@@ -53,6 +56,7 @@ final class SurvosClaimsBundle extends AbstractBundle
         $services->set(OcrClaimsPanel::class);
         $services->set(SourceClaims::class);
         $services->set(ClaimConstantsExtension::class);
+        $services->set(ClaimFunctionsExtension::class)->autoconfigure();
 
         if (class_exists(\Survos\TablerBundle\Event\MenuEvent::class)) {
             $services->set(\Survos\ClaimsBundle\Menu\ClaimsMenuSubscriber::class)
