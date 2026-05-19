@@ -87,7 +87,7 @@ class ClaimRun
         public private(set) ?string $prompt = null,
 
         /** Raw/summarised response payload for debugging. */
-        #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+        #[ORM\Column(type: Types::JSONB, nullable: true)]
         #[Groups(['claim_run:read'])]
         public private(set) mixed $response = null,
 

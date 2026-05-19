@@ -209,7 +209,7 @@ class Claim
          * The asserted value. Scalar for most predicates; structured for
          * places (with coords), speculations (with internal fields), etc.
          */
-        #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
+        #[ORM\Column(type: Types::JSONB)]
         #[Groups(['claim:read'])]
         #[ApiProperty(
             description: 'Asserted value. Scalar for most predicates (string, bool, number); object for structured predicates like places with coordinates.',
