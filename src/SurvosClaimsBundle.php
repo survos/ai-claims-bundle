@@ -17,10 +17,12 @@ use Survos\ClaimsBundle\Twig\ClaimConstantsExtension;
 use Survos\ClaimsBundle\Twig\ClaimFunctionsExtension;
 use Survos\ClaimsBundle\Twig\Components\OcrClaimsPanel;
 use Survos\ClaimsBundle\Twig\Components\SourceClaims;
+use Survos\DatasetBundle\Service\DataPaths;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 final class SurvosClaimsBundle extends AbstractBundle
 {
@@ -45,7 +47,8 @@ final class SurvosClaimsBundle extends AbstractBundle
 
         $services->set(ClaimRepository::class);
         $services->set(ClaimRunRepository::class);
-        $services->set(ClaimIngestor::class);
+        $services->set(ClaimIngestor::class)
+            ->arg('$dataPaths', service(DataPaths::class)->ignoreOnInvalid());
         $services->set(ClaimProjector::class)->autowire()->autoconfigure();
         $services->set(ClaimAggregator::class)
             ->arg('$listPredicates', $config['list_predicates']);
