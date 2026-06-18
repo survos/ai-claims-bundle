@@ -63,10 +63,10 @@ final class SurvosClaimsBundle extends AbstractBundle
 
         // Writer side: the ORM Claim/ClaimRun entities (mapped in prependExtension), the
         // ingestor, repositories, and ORM-backed components/commands. Skipped in reader-only
-        // consumers (CLAIMS_READER_ONLY) so they get no `claim` table in their schema — they
-        // READ mediary's claims via ClaimReader instead. Default is writer (unchanged for
-        // mediary/md/pipeline/ssai).
-        if (!self::isReaderOnly()) {
+        // consumers (survos_claims.reader_only: true) so they get no `claim` table in their
+        // schema — they READ mediary's claims via ClaimReader instead. Default is writer
+        // (unchanged for mediary/md/pipeline/ssai).
+        if (!$config['reader_only']) {
             $services->set(ClaimRepository::class);
             $services->set(ClaimRunRepository::class);
             $services->set(ClaimIngestor::class)
@@ -88,32 +88,57 @@ final class SurvosClaimsBundle extends AbstractBundle
     }
 
     /**
-     * Reader-only consumers (e.g. folio apps) set CLAIMS_READER_ONLY=1: they read mediary's
-     * central claims via ClaimReader and do NOT map the Claim entity (no local claim table).
-     * Default (unset) is writer mode — entities + ingestor — so existing apps are unchanged.
+     * Read `survos_claims.reader_only` at prepend time (before config is processed) — the
+     * standard ContainerBuilder API for peeking a bundle's own config in prependExtension.
+     * Mirrors the `reader_only` config node consumed via $config in loadExtension.
      */
-    private static function isReaderOnly(): bool
+    private static function isReaderOnly(ContainerBuilder $builder): bool
     {
-        $v = $_ENV['CLAIMS_READER_ONLY'] ?? $_SERVER['CLAIMS_READER_ONLY'] ?? getenv('CLAIMS_READER_ONLY');
+        $readerOnly = false;
+        foreach ($builder->getExtensionConfig('survos_claims') as $cfg) {
+            if (\is_array($cfg) && \array_key_exists('reader_only', $cfg)) {
+                $readerOnly = (bool) $cfg['reader_only'];
+            }
+        }
 
-        return filter_var($v, FILTER_VALIDATE_BOOLEAN);
+        return $readerOnly;
     }
 
     public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
     {
-        $builder->prependExtensionConfig('doctrine', [
-            'orm' => [
-                'mappings' => [
-                    'SurvosClaimsBundle' => [
-                        'is_bundle' => false,
-                        'type' => 'attribute',
-                        'dir' => \dirname(__DIR__) . '/src/Entity',
-                        'prefix' => 'Survos\\ClaimsBundle\\Entity',
-                        'alias' => 'Claims',
+        $readerOnly = self::isReaderOnly($builder);
+
+        if (!$readerOnly) {
+            // Writer side owns the Claim/ClaimRun ORM entities. Reader-only consumers skip
+            // this so the Claim table never appears in their schema (they read mediary's).
+            $builder->prependExtensionConfig('doctrine', [
+                'orm' => [
+                    'mappings' => [
+                        'SurvosClaimsBundle' => [
+                            'is_bundle' => false,
+                            'type' => 'attribute',
+                            'dir' => \dirname(__DIR__) . '/src/Entity',
+                            'prefix' => 'Survos\\ClaimsBundle\\Entity',
+                            'alias' => 'Claims',
+                        ],
                     ],
                 ],
-            ],
-        ]);
+            ]);
+        } else {
+            // Reader-only consumers get a read-only DBAL connection to mediary's central
+            // claims + media DB (ClaimReader uses it). DSN via env; writes are blocked at the
+            // Postgres role level (mediary_ro). These apps already use named connections, so
+            // adding one is safe (no default_connection ambiguity).
+            $builder->prependExtensionConfig('doctrine', [
+                'dbal' => [
+                    'connections' => [
+                        'mediary_ro' => [
+                            'url' => '%env(resolve:MEDIARY_RO_DATABASE_URL)%',
+                        ],
+                    ],
+                ],
+            ]);
+        }
 
         // Expose bundle templates under @SurvosClaims for component + override.
         $builder->prependExtensionConfig('twig', [

@@ -8,8 +8,9 @@ use Doctrine\DBAL\Connection;
 
 /**
  * Read-only DBAL access to the central claims store (mediary's Postgres `claim` table),
- * via the `mediary_ro` connection registered by media-bundle when MEDIARY_RO_DATABASE_URL
- * is set. This is the consumer-side counterpart to {@see ClaimIngestor} (the writer):
+ * via the `mediary_ro` connection registered by this bundle in reader-only mode
+ * (survos_claims.reader_only: true + MEDIARY_RO_DATABASE_URL). This is the consumer-side
+ * counterpart to {@see ClaimIngestor} (the writer):
  * apps (e.g. folio enrich) READ claims here keyed by media id, while only mediary writes.
  *
  * All schema knowledge for reads lives here, so callers depend on these methods rather
