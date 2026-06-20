@@ -35,6 +35,10 @@ final class SurvosClaimsBundle extends AbstractBundle
                     ->info('Reader-only consumer: read mediary\'s central claims via ClaimReader, do NOT map the Claim entity (no local claim table) or register the writer services. Default false = writer (entities + ingestor).')
                     ->defaultFalse()
                 ->end()
+                ->scalarNode('entity_manager')
+                    ->info('Writer EM for the Claim/ClaimRun entities. Default "default" = the app DB (current behavior). Set to a named EM (e.g. "claims", backed by CLAIMS_DATABASE_URL) to write claims to a SHARED central DB instead. The named EM must be defined in the app doctrine config (connection only — the bundle maps the entities to it).')
+                    ->defaultValue('default')
+                ->end()
                 ->arrayNode('list_predicates')
                     ->info('Predicates the aggregator projects as a list (keywords, places, etc.). Consumers register their own.')
                     ->scalarPrototype()->end()
@@ -69,8 +73,15 @@ final class SurvosClaimsBundle extends AbstractBundle
         if (!$config['reader_only']) {
             $services->set(ClaimRepository::class);
             $services->set(ClaimRunRepository::class);
-            $services->set(ClaimIngestor::class)
+            $ingestor = $services->set(ClaimIngestor::class)
                 ->arg('$dataPaths', service(DataPaths::class)->ignoreOnInvalid());
+            // Writing to a named (shared) EM: inject it explicitly — ClaimIngestor injects
+            // EntityManagerInterface, which otherwise autowires to the DEFAULT EM. The repositories
+            // (ServiceEntityRepository) resolve their EM from the Claim mapping, so moving the
+            // mapping to the named EM (prependExtension) carries them along automatically.
+            if (($config['entity_manager'] ?? 'default') !== 'default') {
+                $ingestor->arg('$em', service('doctrine.orm.' . $config['entity_manager'] . '_entity_manager'));
+            }
             $services->set(ClaimAggregator::class)
                 ->arg('$listPredicates', $config['list_predicates']);
             $services->set(ClaimsExportCommand::class);
@@ -104,6 +115,20 @@ final class SurvosClaimsBundle extends AbstractBundle
         return $readerOnly;
     }
 
+    /** Read `survos_claims.entity_manager` at prepend time (mirrors {@see isReaderOnly}). */
+    private static function entityManagerName(ContainerBuilder $builder): string
+    {
+        $em = 'default';
+        foreach ($builder->getExtensionConfig('survos_claims') as $cfg) {
+            if (\is_array($cfg) && \array_key_exists('entity_manager', $cfg)
+                && \is_string($cfg['entity_manager']) && $cfg['entity_manager'] !== '') {
+                $em = $cfg['entity_manager'];
+            }
+        }
+
+        return $em;
+    }
+
     public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $readerOnly = self::isReaderOnly($builder);
@@ -111,18 +136,23 @@ final class SurvosClaimsBundle extends AbstractBundle
         if (!$readerOnly) {
             // Writer side owns the Claim/ClaimRun ORM entities. Reader-only consumers skip
             // this so the Claim table never appears in their schema (they read mediary's).
-            $builder->prependExtensionConfig('doctrine', [
-                'orm' => [
-                    'mappings' => [
-                        'SurvosClaimsBundle' => [
-                            'is_bundle' => false,
-                            'type' => 'attribute',
-                            'dir' => \dirname(__DIR__) . '/src/Entity',
-                            'prefix' => 'Survos\\ClaimsBundle\\Entity',
-                            'alias' => 'Claims',
-                        ],
-                    ],
+            $mapping = [
+                'SurvosClaimsBundle' => [
+                    'is_bundle' => false,
+                    'type' => 'attribute',
+                    'dir' => \dirname(__DIR__) . '/src/Entity',
+                    'prefix' => 'Survos\\ClaimsBundle\\Entity',
+                    'alias' => 'Claims',
                 ],
+            ];
+            // Attach the mapping to the configured EM: the default EM (current behavior) or a named EM
+            // (e.g. "claims" → CLAIMS_DATABASE_URL) so claims write to a SHARED central DB. The named
+            // EM's connection is defined by the app; we only attach the entity mapping to it here.
+            $emName = self::entityManagerName($builder);
+            $builder->prependExtensionConfig('doctrine', [
+                'orm' => $emName === 'default'
+                    ? ['mappings' => $mapping]
+                    : ['entity_managers' => [$emName => ['mappings' => $mapping]]],
             ]);
         } else {
             // Reader-only consumers get a read-only DBAL connection to mediary's central

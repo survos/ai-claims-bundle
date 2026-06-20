@@ -99,6 +99,16 @@ final class ClaimIngestor
     }
 
     /**
+     * Commit pending claim writes on THIS ingestor's EM — which may be a dedicated shared-claims EM
+     * (survos_claims.entity_manager), not the app's default. Callers must flush via this, not their
+     * own EntityManager, or claims silently never commit when a separate EM is configured.
+     */
+    public function flush(): void
+    {
+        $this->em->flush();
+    }
+
+    /**
      * @param list<RawClaim> $rawClaims
      */
     private function appendToClaimsJsonl(?string $scope, string $subjectType, string $subjectId, string $source, array $rawClaims, string $runId): void
