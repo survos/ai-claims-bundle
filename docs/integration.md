@@ -46,6 +46,66 @@ bin/console make:migration
 bin/console doctrine:migrations:migrate
 ```
 
+## 3b. Shared claims DB across apps (one store, many apps)
+
+The setup above keeps the `claim` table in the app's own DB. When several apps must share
+claims — **writers** producing them (enrich pipeline, mediary) and **readers** displaying them
+(a public site) — point them all at one central `claims` Postgres. **mediary owns the schema;**
+the others just connect.
+
+**Writer apps** (e.g. md, mediary) target a dedicated `claims` EM instead of the app DB:
+
+```yaml
+# config/packages/survos_claims.yaml
+survos_claims:
+    entity_manager: claims          # the Claim/ClaimRun mapping + ClaimIngestor use this EM
+```
+```yaml
+# config/packages/doctrine.yaml
+doctrine:
+    dbal:
+        connections:
+            claims:
+                url: '%env(resolve:CLAIMS_DATABASE_URL)%'
+    orm:
+        entity_managers:
+            claims:
+                connection: claims  # NO `mappings:` — the bundle attaches them when entity_manager: claims
+```
+```dotenv
+# .env — default to the app DB so local/dev never breaks; prod overrides to the central DB.
+CLAIMS_DATABASE_URL=${DATABASE_URL}
+```
+
+`ClaimIngestor` writes via that EM. **Flush with `$ingestor->flush()`, never your own
+`EntityManager`** — with a separate EM, flushing the default one silently never commits the claims.
+
+**Reader apps** (e.g. zm) don't map the entity — they read the central store over DBAL:
+
+```yaml
+survos_claims:
+    reader_only: true               # no claim table, no writer services; ClaimReader only
+```
+```dotenv
+MEDIARY_RO_DATABASE_URL=postgresql://…ro…@host:5432/claims   # ClaimReader uses this
+```
+
+**Create the central DB + schema once.** Two flat tables (`claim`, `claim_run`); the bundle owns
+the entity definitions so there are no per-EM migration files. Use the idempotent script (also
+creates the database if it's missing):
+
+```bash
+# in a writer's container, where CLAIMS_DATABASE_URL is set (dokku config:set):
+dokku run mus php bin/init-claims-schema.php
+# or anywhere, with an explicit DSN:
+php bin/init-claims-schema.php 'postgresql://USER:PASS@HOST:5432/claims'
+```
+Equivalently from a writer app: `bin/console doctrine:schema:create --em=claims`.
+
+> The `entity_manager` option defaults to `'default'` (the single-DB setup above), so existing
+> single-app consumers are unaffected. `mediary` is the canonical owner/writer; `md` writes
+> AI/OCR claims; `zm` reads — all against the same `claims` DB.
+
 ## 4. Pick a scope convention
 
 The bundle's `scope` column is nullable and app-interpreted. Pick one
