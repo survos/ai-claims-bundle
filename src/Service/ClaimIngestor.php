@@ -12,6 +12,8 @@ use Survos\ClaimsBundle\Repository\ClaimRunRepository;
 use Survos\DatasetBundle\Service\DataPaths;
 use Survos\JsonlBundle\IO\JsonlWriter;
 use Survos\JsonlBundle\IO\JsonlWriterOptions;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Ulid;
 
 /**
@@ -35,6 +37,7 @@ final class ClaimIngestor
         private readonly ClaimRepository $claims,
         private readonly ClaimRunRepository $runs,
         private readonly ?DataPaths $dataPaths = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -52,10 +55,7 @@ final class ClaimIngestor
     ): ClaimRun {
         $runId ??= (string) new Ulid();
 
-        // ── JSONL authority: append to the scope's claims.jsonl in the vault ──────
-        $this->appendToClaimsJsonl($scope, $subjectType, $subjectId, $source, $rawClaims, $runId);
-
-        // ── DB index (rebuildable): delete-then-insert for this subject+source ────
+        // ── DB index (queryable; what claims:fetch reads): delete-then-insert ─────
         foreach ($this->claims->findForSubjectAndSource($subjectType, $subjectId, $source, $scope) as $stale) {
             $this->em->remove($stale);
         }
@@ -93,6 +93,17 @@ final class ClaimIngestor
                 runId:       $runId,
             );
             $this->em->persist($claim);
+        }
+
+        // ── Vault JSONL mirror: best-effort. The DB (above) is the queryable store that
+        // claims:fetch reads and can rebuild the JSONL from, so a vault this app doesn't own
+        // (e.g. the central mediary service writing a dataset's vault) must not abort the claim.
+        try {
+            $this->appendToClaimsJsonl($scope, $subjectType, $subjectId, $source, $rawClaims, $runId);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Claims persisted to DB but vault JSONL append failed for {scope}/{subject}: {err}', [
+                'scope' => $scope, 'subject' => $subjectId, 'err' => $e->getMessage(),
+            ]);
         }
 
         return $run;
