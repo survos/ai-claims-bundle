@@ -87,6 +87,25 @@ final class ClaimReader
         return $out;
     }
 
+    /**
+     * Every claim for a whole scope (dataset), ordered newest-first per subject — the dataset-wide
+     * counterpart to {@see forSubjects()}. Backs `claims:fetch`, which dumps a dataset's claims to
+     * the vault claims.jsonl so enrich folds them locally and never hits the live DB per row.
+     * The ordering lets the consumer manifest (first value per subject+predicate wins) without re-sorting.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function forScope(string $scope): array
+    {
+        $conn = $this->require();
+
+        return $conn->executeQuery(
+            'SELECT scope, subject_type, subject_id, predicate, source, value, confidence, basis, run_id, created_at
+             FROM claim WHERE scope = :scope ORDER BY subject_id, created_at DESC',
+            ['scope' => $scope],
+        )->fetchAllAssociative();
+    }
+
     /** Number of claims for a single subject (media id). */
     public function countForSubject(string $subjectId, ?string $scope = null): int
     {

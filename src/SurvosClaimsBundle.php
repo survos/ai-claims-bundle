@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Survos\ClaimsBundle;
 
 use Survos\ClaimsBundle\Command\ClaimsExportCommand;
+use Survos\ClaimsBundle\Command\ClaimsFetchCommand;
 use Survos\ClaimsBundle\Command\ClaimsImportCommand;
 use Survos\ClaimsBundle\Repository\ClaimRepository;
 use Survos\ClaimsBundle\Repository\ClaimRunRepository;
@@ -60,6 +61,10 @@ final class SurvosClaimsBundle extends AbstractBundle
         // optionally so ClaimReader::isAvailable() can guard callers when it's absent.
         $services->set(ClaimReader::class)
             ->arg('$connection', service('doctrine.dbal.mediary_ro_connection')->ignoreOnInvalid());
+        // Reader-side fetch: dumps a dataset's claims to the vault claims.jsonl (ClaimReader, no ORM),
+        // so it works on reader-only consumers too. DataPaths is optional (graceful without dataset-bundle).
+        $services->set(ClaimsFetchCommand::class)
+            ->arg('$dataPaths', service(DataPaths::class)->ignoreOnInvalid());
         $services->set(ClaimProjector::class)->autowire()->autoconfigure();
         $services->set(SourceClaims::class);
         $services->set(ClaimConstantsExtension::class);
@@ -129,6 +134,16 @@ final class SurvosClaimsBundle extends AbstractBundle
         return $em;
     }
 
+    /** True when MEDIARY_RO_DATABASE_URL is set (non-empty) — dotenv has populated $_ENV by compile time. */
+    private static function mediaryRoConfigured(): bool
+    {
+        $url = $_ENV['MEDIARY_RO_DATABASE_URL']
+            ?? $_SERVER['MEDIARY_RO_DATABASE_URL']
+            ?? getenv('MEDIARY_RO_DATABASE_URL');
+
+        return is_string($url) && $url !== '';
+    }
+
     public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $readerOnly = self::isReaderOnly($builder);
@@ -154,11 +169,15 @@ final class SurvosClaimsBundle extends AbstractBundle
                     ? ['mappings' => $mapping]
                     : ['entity_managers' => [$emName => ['mappings' => $mapping]]],
             ]);
-        } else {
-            // Reader-only consumers get a read-only DBAL connection to mediary's central
-            // claims + media DB (ClaimReader uses it). DSN via env; writes are blocked at the
-            // Postgres role level (mediary_ro). These apps already use named connections, so
-            // adding one is safe (no default_connection ambiguity).
+        }
+
+        // Read-only DBAL connection to mediary's central claims + media DB (ClaimReader uses it).
+        // Registered for BOTH readers (zm) and writers (md) whenever MEDIARY_RO_DATABASE_URL is set,
+        // so any app can pull a dataset's claims into the vault (claims:fetch). It's a named
+        // connection (default_connection is untouched) with no ORM mapping, so it's invisible to
+        // schema/migration tooling; ClaimReader takes it via ignoreOnInvalid. Guarded on the env so
+        // apps that don't read mediary (mus, scan) don't get a connection pointing at a missing DSN.
+        if (self::mediaryRoConfigured()) {
             $builder->prependExtensionConfig('doctrine', [
                 'dbal' => [
                     'connections' => [
