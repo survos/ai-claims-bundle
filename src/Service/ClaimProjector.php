@@ -36,6 +36,11 @@ final class ClaimProjector
             if (isset($claims[$predicate]['items'])) {
                 $row[$field] = array_column($claims[$predicate]['items'], 'value');
             }
+            // The raw predicate (e.g. dcterms:subject) is now handled — it's projected onto the
+            // relation core ($field). Drop it so it doesn't fall through to folio extras, which should
+            // only carry genuinely unmapped/noise keys. (Scalar predicates are consumed by the DTO
+            // #[Map] instead, so they don't dangle.)
+            unset($row[$predicate]);
         }
 
         return $row;
