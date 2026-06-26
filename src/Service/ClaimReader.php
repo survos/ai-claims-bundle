@@ -7,11 +7,12 @@ namespace Survos\ClaimsBundle\Service;
 use Doctrine\DBAL\Connection;
 
 /**
- * Read-only DBAL access to the central claims store (mediary's Postgres `claim` table),
- * via the `mediary_ro` connection registered by this bundle in reader-only mode
- * (survos_claims.reader_only: true + MEDIARY_RO_DATABASE_URL). This is the consumer-side
- * counterpart to {@see ClaimIngestor} (the writer):
- * apps (e.g. folio enrich) READ claims here keyed by media id, while only mediary writes.
+ * Read access to the central claims store (the Postgres `claim` table), via the `claims_ro`
+ * connection this bundle registers from CLAIMS_DATABASE_URL — the SAME var the writer uses.
+ * There is one claims DB and one env var; "read-only" is enforced by the Postgres role in the
+ * DSN (a reader app uses a claims_ro role, so a write attempt fails at the DB), not by a second
+ * connection/var. This is the consumer-side counterpart to {@see ClaimIngestor} (the writer):
+ * apps (e.g. folio enrich) READ claims here keyed by media id.
  *
  * All schema knowledge for reads lives here, so callers depend on these methods rather
  * than the table layout — the same containment babel-bundle uses for translation memory.
@@ -27,7 +28,7 @@ final class ClaimReader
     ) {
     }
 
-    /** True when the read-only mediary connection is wired (MEDIARY_RO_DATABASE_URL set). */
+    /** True when the claims DB connection is wired (CLAIMS_DATABASE_URL set). */
     public function isAvailable(): bool
     {
         return $this->connection !== null;
@@ -127,8 +128,8 @@ final class ClaimReader
     {
         if ($this->connection === null) {
             throw new \RuntimeException(
-                'ClaimReader has no connection. Set MEDIARY_RO_DATABASE_URL so media-bundle '
-                . 'registers the read-only `mediary_ro` connection.',
+                'ClaimReader has no connection. Set CLAIMS_DATABASE_URL so claims-bundle '
+                . 'registers the `claims_ro` connection (read-only enforced by the DSN role).',
             );
         }
 

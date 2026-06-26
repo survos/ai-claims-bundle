@@ -55,12 +55,13 @@ final class SurvosClaimsBundle extends AbstractBundle
                 ->autowire()
                 ->autoconfigure();
 
-        // Always available: read-only access to mediary's central claim store + display
-        // helpers that don't touch the ORM. ClaimReader uses the `mediary_ro` connection
-        // (registered in prependExtension when MEDIARY_RO_DATABASE_URL is set); injected
-        // optionally so ClaimReader::isAvailable() can guard callers when it's absent.
+        // Always available: read access to the central claim store + display helpers that don't
+        // touch the ORM. ClaimReader uses the `claims_ro` connection (registered in prependExtension
+        // when CLAIMS_DATABASE_URL is set — the SAME var the writer uses; read-only is enforced by
+        // the Postgres role in the DSN, not a second var). Injected optionally so
+        // ClaimReader::isAvailable() can guard callers when it's absent.
         $services->set(ClaimReader::class)
-            ->arg('$connection', service('doctrine.dbal.mediary_ro_connection')->ignoreOnInvalid());
+            ->arg('$connection', service('doctrine.dbal.claims_ro_connection')->ignoreOnInvalid());
         // Reader-side fetch: dumps a dataset's claims to the vault claims.jsonl (ClaimReader, no ORM),
         // so it works on reader-only consumers too. DataPaths is optional (graceful without dataset-bundle).
         $services->set(ClaimsFetchCommand::class)
@@ -134,12 +135,12 @@ final class SurvosClaimsBundle extends AbstractBundle
         return $em;
     }
 
-    /** True when MEDIARY_RO_DATABASE_URL is set (non-empty) — dotenv has populated $_ENV by compile time. */
-    private static function mediaryRoConfigured(): bool
+    /** True when CLAIMS_DATABASE_URL is set (non-empty) — dotenv has populated $_ENV by compile time. */
+    private static function claimsConfigured(): bool
     {
-        $url = $_ENV['MEDIARY_RO_DATABASE_URL']
-            ?? $_SERVER['MEDIARY_RO_DATABASE_URL']
-            ?? getenv('MEDIARY_RO_DATABASE_URL');
+        $url = $_ENV['CLAIMS_DATABASE_URL']
+            ?? $_SERVER['CLAIMS_DATABASE_URL']
+            ?? getenv('CLAIMS_DATABASE_URL');
 
         return is_string($url) && $url !== '';
     }
@@ -171,18 +172,19 @@ final class SurvosClaimsBundle extends AbstractBundle
             ]);
         }
 
-        // Read-only DBAL connection to mediary's central claims + media DB (ClaimReader uses it).
-        // Registered for BOTH readers (zm) and writers (md) whenever MEDIARY_RO_DATABASE_URL is set,
-        // so any app can pull a dataset's claims into the vault (claims:fetch). It's a named
-        // connection (default_connection is untouched) with no ORM mapping, so it's invisible to
+        // DBAL connection to the central claims DB for ClaimReader (claims:fetch, display helpers).
+        // ONE env var — CLAIMS_DATABASE_URL — for both read and write; "read-only" is enforced by the
+        // Postgres role in the DSN (a reader app points CLAIMS_DATABASE_URL at a claims_ro role, so a
+        // write fails at the DB). Registered for BOTH readers (zm) and writers (md) whenever the var is
+        // set. Named connection (default_connection untouched), no ORM mapping → invisible to
         // schema/migration tooling; ClaimReader takes it via ignoreOnInvalid. Guarded on the env so
-        // apps that don't read mediary (mus, scan) don't get a connection pointing at a missing DSN.
-        if (self::mediaryRoConfigured()) {
+        // apps that don't use claims (mus, scan) don't get a connection pointing at a missing DSN.
+        if (self::claimsConfigured()) {
             $builder->prependExtensionConfig('doctrine', [
                 'dbal' => [
                     'connections' => [
-                        'mediary_ro' => [
-                            'url' => '%env(resolve:MEDIARY_RO_DATABASE_URL)%',
+                        'claims_ro' => [
+                            'url' => '%env(resolve:CLAIMS_DATABASE_URL)%',
                         ],
                     ],
                 ],

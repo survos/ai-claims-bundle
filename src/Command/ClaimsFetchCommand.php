@@ -41,7 +41,7 @@ final class ClaimsFetchCommand
         ?string $output = null,
     ): int {
         if (!$this->reader->isAvailable()) {
-            $io->error("No claims connection. Set MEDIARY_RO_DATABASE_URL so the read-only `mediary_ro` connection is registered.");
+            $io->error("No claims connection. Set CLAIMS_DATABASE_URL so the `claims_ro` connection is registered (read-only enforced by the DSN role).");
             return Command::FAILURE;
         }
         if (!class_exists(JsonlWriter::class)) {
