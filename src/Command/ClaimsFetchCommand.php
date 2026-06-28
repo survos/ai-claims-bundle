@@ -84,6 +84,46 @@ final class ClaimsFetchCommand
 
         $io->success(sprintf('Fetched %d claim(s) for "%s" → %s', $count, $dataset, $output));
 
+        // Also materialise the run records (prompt/model/tokens/response) so the folio can ingest a
+        // local `claim_run` table and serve the "results of a task" view offline. Best-effort: a
+        // missing claim_run table (older claims DB) shouldn't fail the claims fetch.
+        if ($this->dataPaths !== null) {
+            $runsOut = $this->dataPaths->claimsFile($dataset, 'claim-runs.jsonl');
+            try {
+                $runs = $this->reader->runsForScope($dataset);
+                $rc = 0;
+                $rw = JsonlWriter::open($runsOut);
+                $ok = false;
+                try {
+                    foreach ($runs as $r) {
+                        $rw->write([
+                            'id'           => $r['id'],
+                            'scope'        => $r['scope'],
+                            'subjectType'  => $r['subject_type'],
+                            'subjectId'    => $r['subject_id'],
+                            'source'       => $r['source'],
+                            'model'        => $r['model'],
+                            'prompt'       => $r['prompt'],
+                            'response'     => $r['response'],
+                            'inputTokens'  => $r['input_tokens'],
+                            'outputTokens' => $r['output_tokens'],
+                            'imageTokens'  => $r['image_tokens'],
+                            'durationMs'   => $r['duration_ms'],
+                            'claimCount'   => $r['claim_count'],
+                            'createdAt'    => $r['created_at'],
+                        ]);
+                        ++$rc;
+                    }
+                    $ok = true;
+                } finally {
+                    $ok ? $rw->finish() : $rw->close();
+                }
+                $io->success(sprintf('Fetched %d run(s) for "%s" → %s', $rc, $dataset, $runsOut));
+            } catch (\Throwable $e) {
+                $io->warning(sprintf('Could not fetch claim runs (%s) — claims still fetched.', $e->getMessage()));
+            }
+        }
+
         return Command::SUCCESS;
     }
 }

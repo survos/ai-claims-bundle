@@ -107,6 +107,25 @@ final class ClaimReader
         )->fetchAllAssociative();
     }
 
+    /**
+     * Every claim_run for a whole scope (dataset) — the run-level counterpart to {@see forScope()}.
+     * Backs `claims:fetch`, which also dumps a dataset's runs to the vault so the folio can ingest
+     * them into a local `claim_run` table and serve "results of a task" without the live DB.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function runsForScope(string $scope): array
+    {
+        $conn = $this->require();
+
+        return $conn->executeQuery(
+            'SELECT id, scope, subject_type, subject_id, source, model, prompt, response,
+                    input_tokens, output_tokens, image_tokens, duration_ms, claim_count, created_at
+             FROM claim_run WHERE scope = :scope ORDER BY created_at DESC',
+            ['scope' => $scope],
+        )->fetchAllAssociative();
+    }
+
     /** Number of claims for a single subject (media id). */
     public function countForSubject(string $subjectId, ?string $scope = null): int
     {
