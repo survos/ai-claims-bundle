@@ -13,6 +13,7 @@ use Survos\ClaimsBundle\Service\ClaimAggregator;
 use Survos\ClaimsBundle\Service\ClaimIngestor;
 use Survos\ClaimsBundle\Service\ClaimProjector;
 use Survos\ClaimsBundle\Service\ClaimReader;
+use Survos\ClaimsBundle\Service\ClaimsVaultWriter;
 use Survos\ClaimsBundle\Twig\Components\ClaimsList;
 use Survos\ClaimsBundle\Twig\Components\ClaimsSummary;
 use Survos\ClaimsBundle\Twig\ClaimConstantsExtension;
@@ -56,16 +57,18 @@ final class SurvosClaimsBundle extends AbstractBundle
                 ->autoconfigure();
 
         // Always available: read access to the central claim store + display helpers that don't
-        // touch the ORM. ClaimReader uses the `claims_ro` connection (registered in prependExtension
+        // touch the ORM. ClaimReader uses the `claims` connection (registered in prependExtension
         // when CLAIMS_DATABASE_URL is set — the SAME var the writer uses; read-only is enforced by
         // the Postgres role in the DSN, not a second var). Injected optionally so
         // ClaimReader::isAvailable() can guard callers when it's absent.
         $services->set(ClaimReader::class)
-            ->arg('$connection', service('doctrine.dbal.claims_ro_connection')->ignoreOnInvalid());
-        // Reader-side fetch: dumps a dataset's claims to the vault claims.jsonl (ClaimReader, no ORM),
-        // so it works on reader-only consumers too. DataPaths is optional (graceful without dataset-bundle).
-        $services->set(ClaimsFetchCommand::class)
+            ->arg('$connection', service('doctrine.dbal.claims_connection')->ignoreOnInvalid());
+        // Reader-side fetch service: dumps a dataset's claims to the vault claims.jsonl (ClaimReader,
+        // no ORM), so it works on reader-only consumers too. Single owner of the vault row shape;
+        // claims:fetch and dataset:assemble both call it. DataPaths optional (graceful without dataset-bundle).
+        $services->set(ClaimsVaultWriter::class)
             ->arg('$dataPaths', service(DataPaths::class)->ignoreOnInvalid());
+        $services->set(ClaimsFetchCommand::class);
         $services->set(ClaimProjector::class)->autowire()->autoconfigure();
         $services->set(SourceClaims::class);
         $services->set(ClaimConstantsExtension::class);
@@ -174,7 +177,7 @@ final class SurvosClaimsBundle extends AbstractBundle
 
         // DBAL connection to the central claims DB for ClaimReader (claims:fetch, display helpers).
         // ONE env var — CLAIMS_DATABASE_URL — for both read and write; "read-only" is enforced by the
-        // Postgres role in the DSN (a reader app points CLAIMS_DATABASE_URL at a claims_ro role, so a
+        // Postgres role in the DSN (a reader app points CLAIMS_DATABASE_URL at a readonly database role, so a
         // write fails at the DB). Registered for BOTH readers (zm) and writers (md) whenever the var is
         // set. Named connection (default_connection untouched), no ORM mapping → invisible to
         // schema/migration tooling; ClaimReader takes it via ignoreOnInvalid. Guarded on the env so
@@ -183,7 +186,7 @@ final class SurvosClaimsBundle extends AbstractBundle
             $builder->prependExtensionConfig('doctrine', [
                 'dbal' => [
                     'connections' => [
-                        'claims_ro' => [
+                        'claims' => [
                             'url' => '%env(resolve:CLAIMS_DATABASE_URL)%',
                         ],
                     ],
