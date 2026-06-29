@@ -56,12 +56,12 @@ final class ClaimReader
             $params['scope'] = $scope;
         }
 
-        return $conn->executeQuery(
+        return $this->decodeValues($conn->executeQuery(
             'SELECT scope, subject_id, predicate, source, value, confidence, basis, run_id, created_at
              FROM claim WHERE ' . implode(' AND ', $where) . ' ORDER BY subject_id, created_at DESC',
             $params,
             $types,
-        )->fetchAllAssociative();
+        )->fetchAllAssociative());
     }
 
     /**
@@ -100,11 +100,11 @@ final class ClaimReader
     {
         $conn = $this->require();
 
-        return $conn->executeQuery(
+        return $this->decodeValues($conn->executeQuery(
             'SELECT scope, subject_type, subject_id, predicate, source, value, confidence, basis, run_id, created_at
              FROM claim WHERE scope = :scope ORDER BY subject_id, created_at DESC',
             ['scope' => $scope],
-        )->fetchAllAssociative();
+        )->fetchAllAssociative());
     }
 
     /**
@@ -141,6 +141,32 @@ final class ClaimReader
             'SELECT COUNT(*) FROM claim WHERE ' . implode(' AND ', $where),
             $params,
         )->fetchOne();
+    }
+
+    /**
+     * Decode the jsonb `value` column. Raw DBAL returns a jsonb column as its JSON *text* — a scalar
+     * string `1896` comes back as the literal `"1896"` (with quotes), a structured value as an opaque
+     * JSON string. Without decoding, every consumer that writes these rows back out (claims:fetch →
+     * vault claims.jsonl, enrich → folio) double-encodes: scalar strings gain wrapping quotes and
+     * objects stay strings. Decode once here so callers get the real PHP value. NULL/non-string values
+     * (a driver that already type-maps jsonb) pass through untouched; a decode error keeps the original.
+     *
+     * @param list<array<string,mixed>> $rows
+     * @return list<array<string,mixed>>
+     */
+    private function decodeValues(array $rows): array
+    {
+        foreach ($rows as &$row) {
+            if (\is_string($row['value'] ?? null)) {
+                $decoded = json_decode($row['value'], true);
+                if (json_last_error() === \JSON_ERROR_NONE) {
+                    $row['value'] = $decoded;
+                }
+            }
+        }
+        unset($row);
+
+        return $rows;
     }
 
     private function require(): Connection
