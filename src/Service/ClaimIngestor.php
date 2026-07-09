@@ -53,13 +53,127 @@ final class ClaimIngestor
         ?RunMeta $meta = null,
         ?string $runId = null,
     ): ClaimRun {
+        return $this->recordOne($scope, $subjectType, $subjectId, $source, $rawClaims, $meta, $runId, null);
+    }
+
+    /**
+     * Batch variant of record() for callers ingesting claims for many subjects
+     * in one request/pass (e.g. mediary's media:sync batch endpoint). record()
+     * opens, marks-complete, and closes a fresh vault JsonlWriter per call —
+     * each open/close pays its own sidecar stat+persist cost, capping calls at
+     * roughly 10/sec regardless of payload size (the exact per-row cost
+     * STATE_FLUSH_ROWS batching in JsonlWriter already solves *within* one
+     * writer session — but a writer opened fresh per item never benefits from
+     * it). Items are grouped by scope so one writer is shared per distinct
+     * scope in the batch (almost always just one) instead of per item.
+     *
+     * @param list<array{scope: ?string, subjectType: string, subjectId: string, source: string, rawClaims: list<RawClaim>, meta?: ?RunMeta, runId?: ?string}> $items
+     * @return list<ClaimRun>
+     */
+    public function recordBatch(array $items): array
+    {
+        if ($items === []) {
+            return [];
+        }
+
+        // Preload stale claims/runs per (scope, subjectType, source) group — one
+        // query per group instead of the 2 queries per item recordOne() does on
+        // its own. Groups are almost always singular in practice (one dataset,
+        // one subjectType, one source per batch). Keyed by groupKey+subjectId
+        // (not subjectId alone) so the same subjectId appearing in two groups
+        // (e.g. two different sources) doesn't collide.
+        $groups = [];
+        foreach ($items as $item) {
+            $groupKey = ($item['scope'] ?? '') . "\0" . $item['subjectType'] . "\0" . $item['source'];
+            $groups[$groupKey]['scope'] ??= $item['scope'];
+            $groups[$groupKey]['subjectType'] ??= $item['subjectType'];
+            $groups[$groupKey]['source'] ??= $item['source'];
+            $groups[$groupKey]['subjectIds'][] = $item['subjectId'];
+        }
+
+        $staleClaims = [];
+        $staleRuns = [];
+        foreach ($groups as $groupKey => $group) {
+            foreach ($this->claims->findForSubjectsAndSource($group['subjectType'], $group['subjectIds'], $group['source'], $group['scope']) as $subjectId => $rows) {
+                $staleClaims[$groupKey . "\0" . $subjectId] = $rows;
+            }
+            foreach ($this->runs->findForSubjectsAndSource($group['subjectType'], $group['subjectIds'], $group['source'], $group['scope']) as $subjectId => $rows) {
+                $staleRuns[$groupKey . "\0" . $subjectId] = $rows;
+            }
+        }
+
+        $writers = [];
+        $runs = [];
+
+        try {
+            foreach ($items as $item) {
+                $scope = $item['scope'];
+                $scopeKey = $scope ?? '';
+                $groupKey = $scopeKey . "\0" . $item['subjectType'] . "\0" . $item['source'];
+                $subjectKey = $groupKey . "\0" . $item['subjectId'];
+
+                if (!array_key_exists($scopeKey, $writers)) {
+                    $writers[$scopeKey] = $this->openVaultWriter($scope);
+                }
+
+                $runs[] = $this->recordOne(
+                    $scope,
+                    $item['subjectType'],
+                    $item['subjectId'],
+                    $item['source'],
+                    $item['rawClaims'],
+                    $item['meta'] ?? null,
+                    $item['runId'] ?? null,
+                    $writers[$scopeKey],
+                    $staleClaims[$subjectKey] ?? [],
+                    $staleRuns[$subjectKey] ?? [],
+                );
+            }
+
+            return $runs;
+        } finally {
+            foreach ($writers as $scopeKey => $writer) {
+                if ($writer === null) {
+                    continue;
+                }
+                try {
+                    $writer->finish(markComplete: true);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Claims persisted to DB but vault JSONL batch close failed for {scope}: {err}', [
+                        'scope' => $scopeKey, 'err' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param list<RawClaim> $rawClaims
+     * @param list<Claim>|null $preloadedStaleClaims when non-null, used instead of a fresh
+     *        findForSubjectAndSource() query (recordBatch() preloads these per group)
+     * @param list<ClaimRun>|null $preloadedStaleRuns same, for runs
+     */
+    private function recordOne(
+        ?string $scope,
+        string $subjectType,
+        string $subjectId,
+        string $source,
+        array $rawClaims,
+        ?RunMeta $meta,
+        ?string $runId,
+        ?JsonlWriter $sharedWriter,
+        ?array $preloadedStaleClaims = null,
+        ?array $preloadedStaleRuns = null,
+    ): ClaimRun {
         $runId ??= (string) new Ulid();
 
         // ── DB index (queryable; what claims:fetch reads): delete-then-insert ─────
-        foreach ($this->claims->findForSubjectAndSource($subjectType, $subjectId, $source, $scope) as $stale) {
+        $staleClaims = $preloadedStaleClaims ?? $this->claims->findForSubjectAndSource($subjectType, $subjectId, $source, $scope);
+        foreach ($staleClaims as $stale) {
             $this->em->remove($stale);
         }
-        foreach ($this->runs->findForSubjectAndSource($subjectType, $subjectId, $source, $scope) as $staleRun) {
+        $staleRuns = $preloadedStaleRuns ?? $this->runs->findForSubjectAndSource($subjectType, $subjectId, $source, $scope);
+        foreach ($staleRuns as $staleRun) {
             $this->em->remove($staleRun);
         }
 
@@ -99,7 +213,11 @@ final class ClaimIngestor
         // claims:fetch reads and can rebuild the JSONL from, so a vault this app doesn't own
         // (e.g. the central mediary service writing a dataset's vault) must not abort the claim.
         try {
-            $this->appendToClaimsJsonl($scope, $subjectType, $subjectId, $source, $rawClaims, $runId);
+            if ($sharedWriter !== null) {
+                $this->writeClaimsJsonl($sharedWriter, $scope, $subjectType, $subjectId, $source, $rawClaims, $runId);
+            } else {
+                $this->appendToClaimsJsonl($scope, $subjectType, $subjectId, $source, $rawClaims, $runId);
+            }
         } catch (\Throwable $e) {
             $this->logger->warning('Claims persisted to DB but vault JSONL append failed for {scope}/{subject}: {err}', [
                 'scope' => $scope, 'subject' => $subjectId, 'err' => $e->getMessage(),
@@ -107,6 +225,16 @@ final class ClaimIngestor
         }
 
         return $run;
+    }
+
+    /** Open (append mode) the shared vault writer for recordBatch(), or null when there's no vault to write to. */
+    private function openVaultWriter(?string $scope): ?JsonlWriter
+    {
+        if (null === $this->dataPaths || null === $scope || '' === $scope) {
+            return null;
+        }
+
+        return JsonlWriter::open($this->dataPaths->claimsFile($scope), 'a', JsonlWriterOptions::noLock());
     }
 
     /**
@@ -128,8 +256,24 @@ final class ClaimIngestor
             return;
         }
 
-        $createdAt = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
         $writer = JsonlWriter::open($this->dataPaths->claimsFile($scope), 'a', JsonlWriterOptions::noLock());
+        try {
+            $this->writeClaimsJsonl($writer, $scope, $subjectType, $subjectId, $source, $rawClaims, $runId);
+        } finally {
+            $writer->finish(markComplete: true);
+        }
+    }
+
+    /**
+     * @param list<RawClaim> $rawClaims
+     */
+    private function writeClaimsJsonl(JsonlWriter $writer, ?string $scope, string $subjectType, string $subjectId, string $source, array $rawClaims, string $runId): void
+    {
+        if ([] === $rawClaims) {
+            return;
+        }
+
+        $createdAt = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
         foreach ($rawClaims as $rawClaim) {
             $writer->write([
                 'scope' => $scope,
@@ -144,6 +288,5 @@ final class ClaimIngestor
                 'createdAt' => $createdAt,
             ]);
         }
-        $writer->finish(markComplete: true);
     }
 }

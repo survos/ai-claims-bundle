@@ -58,4 +58,38 @@ final class ClaimRunRepository extends ServiceEntityRepository
         /** @var list<ClaimRun> */
         return $qb->getQuery()->getResult();
     }
+
+    /**
+     * Batch variant of findForSubjectAndSource() — one query for many subjectIds
+     * sharing a (subjectType, source, scope) instead of one query per subject.
+     * Used by ClaimIngestor::recordBatch().
+     *
+     * @param list<string> $subjectIds
+     * @return array<string, list<ClaimRun>> keyed by subjectId
+     */
+    public function findForSubjectsAndSource(string $subjectType, array $subjectIds, string $source, ?string $scope = null): array
+    {
+        $subjectIds = array_values(array_unique($subjectIds));
+        if ($subjectIds === []) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('r')
+            ->andWhere('r.subjectType = :st')->setParameter('st', $subjectType)
+            ->andWhere('r.subjectId IN (:sids)')->setParameter('sids', $subjectIds)
+            ->andWhere('r.source = :src')->setParameter('src', $source)
+            ->orderBy('r.createdAt', 'DESC');
+
+        if ($scope !== null) {
+            $qb->andWhere('r.scope = :scope')->setParameter('scope', $scope);
+        }
+
+        $bySubject = [];
+        /** @var ClaimRun $row */
+        foreach ($qb->getQuery()->getResult() as $row) {
+            $bySubject[$row->subjectId][] = $row;
+        }
+
+        return $bySubject;
+    }
 }
