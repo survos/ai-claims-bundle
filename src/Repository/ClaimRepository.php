@@ -40,6 +40,25 @@ final class ClaimRepository extends ServiceEntityRepository
     }
 
     /**
+     * All claims for every subject in a scope, in one query. Use this (grouping by
+     * subjectId in-memory) instead of calling findForSubject() per row when
+     * processing a whole dataset — see ClaimAggregator::aggregateAllForScope().
+     *
+     * @return list<Claim>
+     */
+    public function findForScope(string $subjectType, string $scope): array
+    {
+        /** @var list<Claim> */
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.subjectType = :st')->setParameter('st', $subjectType)
+            ->andWhere('c.scope = :scope')->setParameter('scope', $scope)
+            ->orderBy('c.subjectId', 'ASC')
+            ->addOrderBy('c.predicate', 'ASC')
+            ->addOrderBy('c.createdAt', 'ASC')
+            ->getQuery()->getResult();
+    }
+
+    /**
      * All claims emitted by one tool for one subject. Used by the ingestor
      * to delete a prior run before writing a fresh one.
      *

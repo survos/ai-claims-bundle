@@ -51,6 +51,47 @@ final class ClaimAggregator
     {
         $rows = $this->claims->findForSubject($subjectType, $subjectId, $scope);
 
+        return $this->aggregateRows($rows);
+    }
+
+    /**
+     * Bulk version of aggregate(): one query for every claim in a scope, grouped and
+     * aggregated per subject. Callers processing every row of a dataset (e.g. an
+     * enrich pass) should use this instead of calling aggregate() per row — per-row
+     * calls are one live DB round trip each regardless of whether that subject has
+     * any claims at all, which turns a dataset with a handful of claims into
+     * thousands of queries.
+     *
+     * @return array<string, array<string, array{
+     *   value: mixed,
+     *   confidence: float,
+     *   basis: ?string,
+     *   source: string,
+     *   items?: list<array{value: mixed, confidence: float, basis: ?string, source: string}>,
+     * }>> subjectId => predicate => best-guess claim
+     */
+    public function aggregateAllForScope(string $subjectType, string $scope): array
+    {
+        $rows = $this->claims->findForScope($subjectType, $scope);
+
+        /** @var array<string, list<Claim>> */
+        $bySubject = [];
+        foreach ($rows as $row) {
+            $bySubject[$row->subjectId] ??= [];
+            $bySubject[$row->subjectId][] = $row;
+        }
+
+        $out = [];
+        foreach ($bySubject as $subjectId => $claims) {
+            $out[$subjectId] = $this->aggregateRows($claims);
+        }
+
+        return $out;
+    }
+
+    /** @param list<Claim> $rows */
+    private function aggregateRows(array $rows): array
+    {
         /** @var array<string, list<Claim>> */
         $byPredicate = [];
         foreach ($rows as $row) {
