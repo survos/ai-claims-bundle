@@ -54,6 +54,12 @@ final class ClaimProjector
         DcTerms::DATE->value        => ItemField::DATE,
         DcTerms::LANGUAGE->value    => ItemField::LANGUAGE,
         DcTerms::TYPE->value        => ItemField::CONTENT_TYPE,
+        // No ItemField const for this one — 'ocrText' is BaseItemDto::$ocrText's literal property
+        // name (see its docblock: "folded in from the vault's claims.jsonl (ai:ocrText)"). Without
+        // this line the fold-in that comment promises never actually happens — DatasetAiCommand's
+        // ocrDocument() and YoutubeRawCommand both record this claim expecting enrich to carry it
+        // onto the item, but SCALAR_MAP had no entry for it until now.
+        Claim::PRED_OCR_TEXT        => 'ocrText',
     ];
 
     private const LIST_MAP = [
