@@ -1,37 +1,39 @@
+{# Twig 3.27 deprecates `macro` anywhere but the root of a template (it becomes an
+   error in Twig 4), so this must stay above the `if`/`table` below, not inside it. #}
+{% macro renderValue(type, value) %}
+  {% if type == 'badges' %}
+    {% for v in (value is iterable ? value : [value]) %}
+      <span class="badge bg-secondary-lt me-1">
+        {% if v is same as(null) %}
+          —
+        {% elseif v is iterable %}
+          {{ v|json_encode }}
+        {% else %}
+          {{ v }}
+        {% endif %}
+      </span>
+    {% endfor %}
+  {% elseif type == 'url' %}
+    <a href="{{ value }}" target="_blank" rel="noopener" class="text-truncate d-inline-block" style="max-width:300px">
+      {{ value|slice(0,60) }}{% if value|length > 60 %}…{% endif %}
+    </a>
+  {% elseif type == 'bool' %}
+    <span class="badge {{ value ? 'bg-green-lt' : 'bg-secondary-lt' }}">
+      {{ value ? 'yes' : 'no' }}
+    </span>
+  {% else %}
+    {% if value is same as(null) %}
+      —
+    {% elseif value is iterable %}
+      {{ value|json_encode }}
+    {% else %}
+      {{ value }}
+    {% endif %}
+  {% endif %}
+{% endmacro %}
+
 {% if this.ctx %}
 <table class="table table-sm table-borderless mb-0">
-
-  {% macro renderValue(type, value) %}
-    {% if type == 'badges' %}
-      {% for v in (value is iterable ? value : [value]) %}
-        <span class="badge bg-secondary-lt me-1">
-          {% if v is same as(null) %}
-            —
-          {% elseif v is iterable %}
-            {{ v|json_encode }}
-          {% else %}
-            {{ v }}
-          {% endif %}
-        </span>
-      {% endfor %}
-    {% elseif type == 'url' %}
-      <a href="{{ value }}" target="_blank" rel="noopener" class="text-truncate d-inline-block" style="max-width:300px">
-        {{ value|slice(0,60) }}{% if value|length > 60 %}…{% endif %}
-      </a>
-    {% elseif type == 'bool' %}
-      <span class="badge {{ value ? 'bg-green-lt' : 'bg-secondary-lt' }}">
-        {{ value ? 'yes' : 'no' }}
-      </span>
-    {% else %}
-      {% if value is same as(null) %}
-        —
-      {% elseif value is iterable %}
-        {{ value|json_encode }}
-      {% else %}
-        {{ value }}
-      {% endif %}
-    {% endif %}
-  {% endmacro %}
 
   {# Content type badge #}
   {% if this.contentType() ?? false %}
