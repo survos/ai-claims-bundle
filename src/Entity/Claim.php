@@ -34,7 +34,7 @@ use Survos\FieldBundle\Attribute\EntityMeta;
  * The bundle never interprets it; indexes include it so the app can enforce
  * scope-isolation at query time.
  */
-#[EntityMeta(icon: 'mdi:tag-search-outline', group: 'Claims')]
+#[EntityMeta(icon: 'mdi:tag-search-outline', group: 'Claims', adminShowCount: false)]
 #[ORM\Entity(repositoryClass: ClaimRepository::class)]
 #[ORM\Table(name: 'claim')]
 #[ORM\Index(fields: ['scope', 'subjectType', 'subjectId', 'predicate'], name: 'idx_claim_scope_subject_pred')]

@@ -28,7 +28,7 @@ use Survos\FieldBundle\Attribute\EntityMeta;
  * fresh ones — so "the current run" for a source is always the one whose
  * claims exist right now.
  */
-#[EntityMeta(icon: 'mdi:tag-search-outline', group: 'Claims')]
+#[EntityMeta(icon: 'mdi:tag-search-outline', group: 'Claims', adminShowCount: false)]
 #[ORM\Entity(repositoryClass: ClaimRunRepository::class)]
 #[ORM\Table(name: 'claim_run')]
 #[ORM\Index(fields: ['scope', 'subjectType', 'subjectId', 'source'], name: 'idx_claim_run_scope_subject_source')]
