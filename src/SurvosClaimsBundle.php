@@ -12,7 +12,9 @@ use Survos\ClaimsBundle\Repository\ClaimRunRepository;
 use Survos\ClaimsBundle\Service\ClaimAggregator;
 use Survos\ClaimsBundle\Service\ClaimIngestor;
 use Survos\ClaimsBundle\Service\ClaimProjector;
+use Survos\ClaimsBundle\Service\ApiClaimReader;
 use Survos\ClaimsBundle\Service\ClaimReader;
+use Survos\ClaimsBundle\Service\ClaimReaderInterface;
 use Survos\ClaimsBundle\Service\ClaimsVaultWriter;
 use Survos\ClaimsBundle\Twig\Components\ClaimsList;
 use Survos\ClaimsBundle\Twig\Components\ClaimsSummary;
@@ -46,6 +48,25 @@ final class SurvosClaimsBundle extends AbstractBundle
                     ->scalarPrototype()->end()
                     ->defaultValue([])
                 ->end()
+                ->enumNode('reader')
+                    ->info('How ClaimReaderInterface reaches the central claims store. "dbal" (default) opens a Postgres connection from CLAIMS_DATABASE_URL — the app needs network access to the DB, a readonly role, and a credential to rotate. "api" calls mediary over HTTP instead, so only mediary touches the database and a reader app holds a URL + token. Writers are unaffected: ClaimIngestor always writes over the EM.')
+                    ->values(['dbal', 'api'])
+                    ->defaultValue('dbal')
+                ->end()
+                ->arrayNode('api')
+                    ->info('Settings for reader: api. Ignored when reader: dbal.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('base_uri')
+                            ->info('Mediary base URI, e.g. https://mediary.survos.com. Empty leaves ApiClaimReader::isAvailable() false so callers degrade instead of erroring.')
+                            ->defaultNull()
+                        ->end()
+                        ->scalarNode('token')
+                            ->info('Bearer token sent to the claims API. Reads are not public: claims can contain unpublished AI output.')
+                            ->defaultNull()
+                        ->end()
+                    ->end()
+                ->end()
             ->end();
     }
 
@@ -63,6 +84,22 @@ final class SurvosClaimsBundle extends AbstractBundle
         // ClaimReader::isAvailable() can guard callers when it's absent.
         $services->set(ClaimReader::class)
             ->arg('$connection', service('doctrine.dbal.claims_connection')->ignoreOnInvalid());
+
+        // The HTTP reader is always registered but only aliased when reader: api. Registering it
+        // unconditionally keeps the wiring symmetric and lets an app inject it explicitly (e.g. a
+        // command that compares the two transports) without flipping global config.
+        $services->set(ApiClaimReader::class)
+            ->arg('$baseUri', $config['api']['base_uri'] ?? null)
+            ->arg('$token', $config['api']['token'] ?? null)
+            ->arg('$logger', service('logger')->ignoreOnInvalid());
+
+        // Consumers type-hint the INTERFACE; this alias decides the transport. ClaimReader::class
+        // stays a real service so existing concrete type-hints keep resolving (they get DBAL, which
+        // is what they always got) — switching an app to the API is then a config change plus a
+        // type-hint change, never a silent behaviour swap under a name that says "DBAL".
+        $services->alias(ClaimReaderInterface::class, 'api' === $config['reader']
+            ? ApiClaimReader::class
+            : ClaimReader::class);
         // Reader-side fetch service: dumps a dataset's claims to the vault claims.jsonl (ClaimReader,
         // no ORM), so it works on reader-only consumers too. Single owner of the vault row shape;
         // claims:fetch and dataset:assemble both call it. DataPaths optional (graceful without dataset-bundle).

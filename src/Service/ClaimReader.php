@@ -21,7 +21,7 @@ use Doctrine\DBAL\Connection;
  * {@see isAvailable()} guards the optional connection: when the env/role isn't wired the
  * service still exists but reports unavailable, so callers can degrade gracefully.
  */
-final class ClaimReader
+final class ClaimReader implements ClaimReaderInterface
 {
     public function __construct(
         private readonly ?Connection $connection = null,

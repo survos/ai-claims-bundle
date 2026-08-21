@@ -9,21 +9,25 @@ use Survos\JsonlBundle\IO\JsonlWriter;
 
 /**
  * Materialise a dataset's claims (and runs) from the central claims DB into the vault JSONL — the
- * read-side "fetch" of the pipeline ({@see ClaimReader} → vault `claims.jsonl`/`claim-runs.jsonl`).
+ * read-side "fetch" of the pipeline ({@see ClaimReaderInterface} → vault `claims.jsonl`/`claim-runs.jsonl`).
  *
  * Single owner of the vault row shape: both `claims:fetch` and `dataset:assemble`'s inline
  * pre-enrich fetch call this, so the shape never drifts between them.
+ *
+ * Depends on the INTERFACE, not the DBAL reader: this runs on reader-only consumers, which are
+ * exactly the apps that should not need a Postgres DSN. With `survos_claims.reader: api` it
+ * materialises the vault over mediary's HTTP API instead, same rows either way.
  */
 final class ClaimsVaultWriter
 {
     public function __construct(
-        private readonly ClaimReader $reader,
+        private readonly ClaimReaderInterface $reader,
         // Optional: dataset-bundle owns the vault layout. Without it, callers must pass $output.
         private readonly ?DataPaths $dataPaths = null,
     ) {
     }
 
-    /** True when the claims DB connection is wired (delegates to {@see ClaimReader::isAvailable()}). */
+    /** True when the claims store is reachable-in-principle (delegates to the reader). */
     public function isAvailable(): bool
     {
         return $this->reader->isAvailable();

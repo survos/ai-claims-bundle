@@ -80,7 +80,43 @@ CLAIMS_DATABASE_URL=${DATABASE_URL}
 `ClaimIngestor` writes via that EM. **Flush with `$ingestor->flush()`, never your own
 `EntityManager`** — with a separate EM, flushing the default one silently never commits the claims.
 
-**Reader apps** (e.g. zm) don't map the entity — they read the central store over DBAL:
+### Readers: HTTP API instead of a database DSN (preferred)
+
+A reader app displays claims it never writes, so making it hold a Postgres DSN means network
+reachability to the database, a readonly role to provision, and a credential to rotate — in every
+app, including public-facing ones. Point it at mediary's HTTP API instead:
+
+```yaml
+# config/packages/survos_claims.yaml  (e.g. zm)
+survos_claims:
+    reader_only: true
+    reader: api
+    api:
+        base_uri: '%env(CLAIMS_API_BASE_URI)%'   # https://mediary.survos.com
+        token:    '%env(CLAIMS_API_TOKEN)%'      # must match mediary's CLAIMS_API_TOKEN
+```
+
+No `CLAIMS_DATABASE_URL`, no `MEDIARY_RO_DATABASE_URL`, no doctrine `claims` connection.
+
+**Type-hint `ClaimReaderInterface`, not `ClaimReader`.** The interface is aliased to whichever
+transport is configured; the concrete `ClaimReader` remains DBAL, so an existing concrete
+type-hint keeps getting a database connection and will silently ignore `reader: api`.
+
+Server side (mediary) exposes `GET /api/claim-store/{subjects,scope,runs,count}`, Bearer-authed
+against `CLAIMS_API_TOKEN`. Note the path is `/api/claim-store/`, not `/api/claims/` — the latter
+is API Platform's `Claim` resource, and `/api/claims/runs` would match it as `{id}`. The
+firewall lists the prefix PUBLIC_ACCESS; the controller does the real auth and returns 503 when
+the token is unset, so an unconfigured deploy fails closed.
+
+Both transports return the same rows. Verified against real data (scope `mediary`): `forSubjects`
+49/49, `manifestedForSubjects` 39/39, `runsForScope` 135/135, `countForSubject` 15/15 — byte
+identical JSON.
+
+Failure policy differs by necessity: the API reader logs and returns empty on a failed read
+rather than throwing, because claims are supplementary display data and mediary being down
+should degrade a page, not 500 it.
+
+**Reader apps over DBAL** (legacy) don't map the entity — they read the central store over DBAL:
 
 ```yaml
 survos_claims:
