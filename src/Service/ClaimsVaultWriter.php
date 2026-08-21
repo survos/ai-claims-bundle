@@ -47,11 +47,18 @@ final class ClaimsVaultWriter
             throw new \RuntimeException('No output path: dataset-bundle (DataPaths) is unavailable, so pass $output explicitly.');
         }
 
+        // Read BEFORE opening the writer. JsonlWriter::open() truncates immediately, so with the
+        // read inside the write block any failure past that point leaves an empty claims.jsonl --
+        // which enrich then folds as "this dataset has no claims", and _folio keeps that answer
+        // until someone re-runs enrich by hand. Both readers return fully materialised arrays, so
+        // this costs nothing and makes the destructive step unreachable unless the read succeeded.
+        $rows = $this->reader->forScope($scope);
+
         $count = 0;
         $writer = JsonlWriter::open($output);
         $completed = false;
         try {
-            foreach ($this->reader->forScope($scope) as $row) {
+            foreach ($rows as $row) {
                 // DBAL returns snake_case columns; write the canonical claim shape the vault uses.
                 $writer->write([
                     'scope' => $row['scope'],
@@ -76,10 +83,13 @@ final class ClaimsVaultWriter
         $runsOutput = $this->dataPaths?->claimsFile($scope, 'claim-runs.jsonl');
         if ($runsOutput !== null) {
             try {
+                // Same ordering as the claims write above, for the same reason.
+                $runRows = $this->reader->runsForScope($scope);
+
                 $rw = JsonlWriter::open($runsOutput);
                 $ok = false;
                 try {
-                    foreach ($this->reader->runsForScope($scope) as $r) {
+                    foreach ($runRows as $r) {
                         $rw->write([
                             'id' => $r['id'],
                             'scope' => $r['scope'],

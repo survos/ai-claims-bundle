@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Survos\ClaimsBundle\Service;
 
+use Survos\ClaimsBundle\Exception\ClaimsUnavailableException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;
@@ -20,10 +21,21 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * Returns the SAME row shape as {@see ClaimReader} (the `claim` table's columns, `value` decoded),
  * so swapping transports is a config change and callers cannot tell the difference.
  *
- * Failure policy: a read failure returns empty rather than throwing. Claims are supplementary
- * display data — a mediary hiccup should degrade a page, not 500 it. Failures are logged at
- * warning so they stay visible instead of silently looking like "no claims". The one exception is
- * {@see countForSubject()}, which returns 0, matching the DBAL reader's behaviour on an empty set.
+ * Failure policy: a read failure throws {@see ClaimsUnavailableException}, it does not return empty.
+ *
+ * This started as "return empty so a mediary hiccup degrades a page instead of 500ing it", which is
+ * the right instinct for a display panel and the wrong one for everything else — because `[]` also
+ * means "this scope genuinely has no claims", and nothing downstream can tell the two apart. The
+ * only consumer of this interface is {@see ClaimsVaultWriter}, which PERSISTS what it reads into the
+ * vault claims.jsonl that enrich then treats as truth. Under the old policy an expired token or a
+ * momentarily unreachable mediary rewrote that file as empty and marked it complete: enrich folded
+ * zero claims, the folio was rebuilt without them, and because _folio shadows norm on mtime it
+ * stayed that way until somebody re-ran enrich by hand. Worse, the guard written for exactly this
+ * (dataset:assemble's "enriching against the existing claims.jsonl" catch) never fired, because
+ * nothing threw.
+ *
+ * Displaying callers get the graceful behaviour by catching ClaimsUnavailableException, which is a
+ * decision they can make locally. Persisting callers cannot silently inherit it.
  */
 final class ApiClaimReader implements ClaimReaderInterface
 {
@@ -107,8 +119,11 @@ final class ApiClaimReader implements ClaimReaderInterface
      */
     private function request(string $path, array $query): array
     {
+        // Unconfigured is a failure too, not an empty result set. Callers that want to tolerate an
+        // unconfigured reader have isAvailable() to check first; silently answering "no claims"
+        // would make a missing base_uri indistinguishable from a scope nobody has enriched yet.
         if (!$this->isAvailable()) {
-            return [];
+            throw new ClaimsUnavailableException('Claims API base_uri is not configured (survos_claims.api.base_uri).');
         }
 
         // Drop nulls so an unset $scope means "no filter" rather than "scope must be null" —
@@ -133,17 +148,19 @@ final class ApiClaimReader implements ClaimReaderInterface
                     'path' => $path,
                 ]);
 
-                return [];
+                throw new ClaimsUnavailableException(sprintf('Claims API returned HTTP %d for %s.', $status, $path));
             }
 
             return $response->toArray(false);
         } catch (HttpExceptionInterface|\JsonException $e) {
+            // HttpExceptionInterface is aliased from HttpClient's ROOT ExceptionInterface, so this
+            // covers transport failures (connection refused, DNS, timeout) as well as HTTP ones.
             $this->logger->warning('claims API request failed for {path}: {message}', [
                 'path' => $path,
                 'message' => $e->getMessage(),
             ]);
 
-            return [];
+            throw new ClaimsUnavailableException(sprintf('Claims API request failed for %s: %s', $path, $e->getMessage()), 0, $e);
         }
     }
 }

@@ -20,6 +20,16 @@ namespace Survos\ClaimsBundle\Service;
  * subject_id, predicate, source, value, confidence, basis, run_id, created_at — with `value`
  * already JSON-decoded. Both implementations MUST return that same shape, so switching transport
  * is a config change and nothing else.
+ *
+ * FAILURE CONTRACT: an empty array means "there are no claims". A store that could not be read
+ * throws {@see \Survos\ClaimsBundle\Exception\ClaimsUnavailableException} — it never returns empty.
+ *
+ * This is load-bearing, not pedantry. The interface's consumers include
+ * {@see ClaimsVaultWriter}, which persists what it reads into the vault claims.jsonl that enrich
+ * subsequently treats as truth; if an unreachable store answered `[]`, a transport blip would
+ * quietly become "this dataset has no claims" and survive every later build. A consumer that
+ * genuinely wants to degrade — a display panel, say — catches the exception, which is a decision
+ * it makes explicitly rather than one inherited from the transport.
  */
 interface ClaimReaderInterface
 {

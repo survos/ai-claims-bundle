@@ -112,9 +112,38 @@ Both transports return the same rows. Verified against real data (scope `mediary
 49/49, `manifestedForSubjects` 39/39, `runsForScope` 135/135, `countForSubject` 15/15 — byte
 identical JSON.
 
-Failure policy differs by necessity: the API reader logs and returns empty on a failed read
-rather than throwing, because claims are supplementary display data and mediary being down
-should degrade a page, not 500 it.
+### Failure contract
+
+**An empty array means "there are no claims". A store that could not be read throws
+`ClaimsUnavailableException`.** Both transports obey this: the API reader throws on any transport
+error, non-200, or unconfigured `base_uri`; the DBAL reader throws the same type when no connection
+is wired (it extends `RuntimeException`, so existing catches are unaffected).
+
+This started out the other way round — the API reader logged and returned empty, on the reasoning
+that claims are supplementary display data and mediary being down should degrade a page rather than
+500 it. The instinct is right for a display panel and wrong as a transport-level default, because
+`[]` is also the legitimate answer for a scope with no claims, and nothing downstream can tell them
+apart. `ClaimsVaultWriter` is the only consumer of the interface, and it *persists* what it reads
+into the vault `claims.jsonl` that enrich then treats as truth. Under the old policy an expired
+token or a momentary outage rewrote that file as empty and marked it complete: enrich folded zero
+claims, the folio was rebuilt without them, and because `_folio` shadows `norm` on mtime it stayed
+that way until someone re-ran enrich by hand. The guard written for exactly this case —
+`dataset:assemble`'s "enriching against the existing claims.jsonl" catch — never fired, because
+nothing threw.
+
+If you want a consumer to degrade gracefully, catch it there:
+
+```php
+try {
+    $claims = $reader->forSubjects($ids, $scope);
+} catch (ClaimsUnavailableException) {
+    $claims = [];   // an explicit local decision, not one inherited from the transport
+}
+```
+
+`ClaimsVaultWriter` additionally reads *before* opening its writer, since `JsonlWriter::open()`
+truncates on open — so even an unexpected failure mid-fetch leaves the previous vault file intact
+rather than replacing it with an empty one.
 
 **Reader apps over DBAL** (legacy) don't map the entity — they read the central store over DBAL:
 

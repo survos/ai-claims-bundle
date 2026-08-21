@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Survos\ClaimsBundle\Service;
 
+use Survos\ClaimsBundle\Exception\ClaimsUnavailableException;
 use Doctrine\DBAL\Connection;
 
 /**
@@ -172,7 +173,11 @@ final class ClaimReader implements ClaimReaderInterface
     private function require(): Connection
     {
         if ($this->connection === null) {
-            throw new \RuntimeException(
+            // ClaimsUnavailableException, not a bare RuntimeException, so "the store is not usable"
+            // is one catchable type across both transports — a caller that degrades gracefully
+            // shouldn't have to know whether it got DBAL or HTTP. It extends RuntimeException, so
+            // anything already catching that is unaffected.
+            throw new ClaimsUnavailableException(
                 'ClaimReader has no connection. Set CLAIMS_DATABASE_URL so claims-bundle '
                 . 'registers the `claims` connection (read-only enforced by the DSN role).',
             );
